@@ -10,7 +10,11 @@ import threading
 import time
 import math
 import random
-from datetime import datetime
+import datetime
+import os
+import subprocess
+import cv2
+import speech_recognition as sr
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -35,6 +39,147 @@ TICK_MINOR   = "#0D3A50"       # minor tick marks
 SCAN_LINE    = "#1A6A9A"       # hud scan line
 INNER_FILL   = "#000D1F"       # inner orb fill
 BORDER       = "#0D3550"       # frame borders
+
+
+# ─── JARVIS Core Functions ────────────────────────────────────────────────────
+def speak(text: str) -> None:
+    """Use PowerShell's native System.Speech for reliable Windows text-to-speech."""
+    message = f"{text}"
+    print(message)
+    try:
+        ps_cmd = f'''
+Add-Type -AssemblyName System.Speech
+$speak = New-Object System.Speech.Synthesis.SpeechSynthesizer
+$speak.Speak('{message}')
+'''
+        subprocess.run(
+            ['powershell', '-NoProfile', '-Command', ps_cmd],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=15
+        )
+    except Exception as exc:
+        print(f"Speech error: {exc}")
+
+
+def greeting() -> str:
+    hour = int(datetime.datetime.now().hour)
+    if 0 <= hour < 12:
+        msg = "Good morning."
+    elif 12 <= hour < 18:
+        msg = "Good afternoon."
+    else:
+        msg = "Good evening."
+    msg += " I am JARVIS. I can open Windows apps for you."
+    return msg
+
+
+def take_voice_command() -> str:
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Listening...")
+        recognizer.pause_threshold = 1
+        recognizer.adjust_for_ambient_noise(source, duration=1)
+        audio = recognizer.listen(source)
+
+    try:
+        print("Recognizing...")
+        query = recognizer.recognize_google(audio, language="en-in")
+        print(f"You said: {query}")
+        return query.lower()
+    except Exception:
+        print("Could not understand. Please speak again.")
+        return ""
+
+
+def authenticate_face() -> bool:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    trainer_path = os.path.join(base_dir, "Face-Recognition", "trainer", "trainer.yml")
+    local_cascade = os.path.join(base_dir, "Face-Recognition", "haarcascade_frontalface_default.xml")
+    cascade_path = local_cascade if os.path.exists(local_cascade) else os.path.join(
+        cv2.data.haarcascades, "haarcascade_frontalface_default.xml"
+    )
+
+    if not os.path.exists(trainer_path):
+        print("Trainer model not found. Run Face-Recognition/Model Trainer.py first.")
+        return False
+
+    recognizer = cv2.face.LBPHFaceRecognizer_create()
+    recognizer.read(trainer_path)
+
+    face_cascade = cv2.CascadeClassifier(cascade_path)
+    if face_cascade.empty():
+        print("Failed to load face cascade classifier.")
+        return False
+
+    cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    if not cam.isOpened():
+        print("Could not access webcam.")
+        return False
+
+    speak("Starting face recognition. Please look at the camera.")
+    matched_frames = 0
+    max_frames = 120
+    frame_count = 0
+
+    while frame_count < max_frames:
+        ret, img = cam.read()
+        if not ret:
+            frame_count += 1
+            continue
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
+
+        for (x, y, w, h) in faces:
+            _, confidence = recognizer.predict(gray[y:y + h, x:x + w])
+            if confidence < 70:
+                matched_frames += 1
+            if matched_frames >= 3:
+                cam.release()
+                cv2.destroyAllWindows()
+                speak("Optical Face Recognition Done. Welcome.")
+                return True
+
+        frame_count += 1
+
+    cam.release()
+    cv2.destroyAllWindows()
+    speak("Optical Face Recognition Failed.")
+    return False
+
+
+def open_windows_app(app_name: str) -> str:
+    app_map = {
+        "notepad": "notepad.exe",
+        "calculator": "calc.exe",
+        "calc": "calc.exe",
+        "paint": "mspaint.exe",
+        "cmd": "cmd.exe",
+        "command prompt": "cmd.exe",
+        "powershell": "powershell.exe",
+        "explorer": "explorer.exe",
+        "file explorer": "explorer.exe",
+        "settings": "ms-settings:",
+    }
+
+    key = app_name.strip().lower()
+    target = app_map.get(key)
+    if not target:
+        msg = "I only support a few built-in Windows apps right now."
+        print("Supported apps:", ", ".join(sorted(app_map.keys())))
+        return msg
+
+    try:
+        if target.endswith(":"):
+            os.startfile(target)
+        else:
+            subprocess.Popen([target], shell=False)
+        return f"Opening {key}."
+    except Exception as exc:
+        msg = f"I could not open {key}."
+        print(f"Error: {exc}")
+        return msg
 
 
 # ─── Jarvis Orb ───────────────────────────────────────────────────────────────
@@ -252,8 +397,11 @@ class JarvisApp(ctk.CTk):
         self.geometry(f"{sw}x{sh}+0+0")
         self.resizable(True, True)
         self.configure(fg_color=BG)
+        self.authenticated = False
         self._build_ui()
         self._start_clock()
+        # Start authentication in background
+        threading.Thread(target=self._authenticate, daemon=True).start()
 
     def _build_ui(self):
         # ── Header ────────────────────────────────────────────────────────
@@ -291,8 +439,131 @@ class JarvisApp(ctk.CTk):
         center = ctk.CTkFrame(self, fg_color=BG)
         center.pack(fill="both", expand=True)
 
-        self.orb = JarvisOrb(center, size=486)
+        # Left side: Transcript
+        left_panel = ctk.CTkFrame(center, fg_color=PANEL, corner_radius=8, width=380)
+        left_panel.pack(side="left", fill="both", padx=(20, 10), pady=20, expand=False)
+        left_panel.pack_propagate(False)
+
+        ctk.CTkLabel(left_panel,
+                     text="◈ COMMAND LINE",
+                     font=ctk.CTkFont("Courier New", 14, "bold"),
+                     text_color=RING_BRIGHT).pack(pady=(15, 10))
+
+        # Transcript text area
+        self.transcript = ctk.CTkTextbox(
+            left_panel,
+            font=ctk.CTkFont("Courier New", 11),
+            fg_color="#000D1F",
+            text_color=TEXT_SUB,
+            border_color=RING_DIM,
+            border_width=1,
+            corner_radius=4,
+            wrap="word"
+        )
+        self.transcript.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        self.transcript.configure(state="disabled")
+
+        # Center: Orb
+        orb_frame = ctk.CTkFrame(center, fg_color=BG)
+        orb_frame.pack(side="left", fill="both", expand=True)
+
+        self.orb = JarvisOrb(orb_frame, size=486)
         self.orb.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Right side: Controls
+        right_panel = ctk.CTkFrame(center, fg_color=PANEL, corner_radius=8, width=280)
+        right_panel.pack(side="right", fill="both", padx=(10, 20), pady=20, expand=False)
+        right_panel.pack_propagate(False)
+
+        ctk.CTkLabel(right_panel,
+                     text="◈ CONTROLS",
+                     font=ctk.CTkFont("Courier New", 14, "bold"),
+                     text_color=RING_BRIGHT).pack(pady=(15, 10))
+
+        # Voice command button
+        self.voice_btn = ctk.CTkButton(
+            right_panel,
+            text="🎤 VOICE COMMAND",
+            font=ctk.CTkFont("Courier New", 12, "bold"),
+            fg_color="#003A60",
+            hover_color=RING_MID,
+            text_color=RING_BRIGHT,
+            border_width=2,
+            border_color=RING_MID,
+            corner_radius=6,
+            height=38,
+            command=self._on_voice,
+            state="disabled"
+        )
+        self.voice_btn.pack(padx=15, pady=(0, 12), fill="x")
+
+        # Greeting button
+        self.greeting_btn = ctk.CTkButton(
+            right_panel,
+            text="👋 GREETING",
+            font=ctk.CTkFont("Courier New", 11, "bold"),
+            fg_color="#003A60",
+            hover_color=RING_MID,
+            text_color=RING_BRIGHT,
+            border_width=1,
+            border_color=RING_DIM,
+            corner_radius=4,
+            height=32,
+            command=self._on_greeting,
+            state="disabled"
+        )
+        self.greeting_btn.pack(padx=15, pady=(0, 8), fill="x")
+
+        # Face auth button
+        ctk.CTkButton(
+            right_panel,
+            text="🔐 RE-AUTHENTICATE",
+            font=ctk.CTkFont("Courier New", 11, "bold"),
+            fg_color="#003A60",
+            hover_color=RING_MID,
+            text_color=RING_BRIGHT,
+            border_width=1,
+            border_color=RING_DIM,
+            corner_radius=4,
+            height=32,
+            command=lambda: threading.Thread(target=self._authenticate, daemon=True).start()
+        ).pack(padx=15, pady=(0, 8), fill="x")
+
+        # Clear transcript button
+        self.clear_btn = ctk.CTkButton(
+            right_panel,
+            text="🗑️ CLEAR LOG",
+            font=ctk.CTkFont("Courier New", 11, "bold"),
+            fg_color="#003A60",
+            hover_color=RING_MID,
+            text_color=RING_BRIGHT,
+            border_width=1,
+            border_color=RING_DIM,
+            corner_radius=4,
+            height=32,
+            command=self._clear_transcript,
+            state="disabled"
+        )
+        self.clear_btn.pack(padx=15, pady=(0, 8), fill="x")
+
+        # Info label
+        info_text = (
+            "Commands:\n"
+            "• 'open [app]' - Open Windows apps\n"
+            "• 'hello' / 'hi' - Greeting\n"
+            "• 'exit' / 'quit' - Stop listening\n\n"
+            "Supported apps:\n"
+            "notepad, calculator, paint,\n"
+            "cmd, powershell, explorer,\n"
+            "settings"
+        )
+        ctk.CTkLabel(
+            right_panel,
+            text=info_text,
+            font=ctk.CTkFont("Courier New", 9),
+            text_color=TEXT_SUB,
+            justify="left"
+        ).pack(padx=15, pady=(20, 15), fill="x")
 
         # ── Floating input — bottom right ─────────────────────────────────
         row = ctk.CTkFrame(self, fg_color="transparent")
@@ -313,13 +584,13 @@ class JarvisApp(ctk.CTk):
             corner_radius=4,
             width=420,
             placeholder_text="Enter directive...",
-            placeholder_text_color="#1A4A6A"
+            placeholder_text_color="#1A4A6A",
+            state="disabled"
         )
         self.entry.pack(side="left", padx=(0, 10))
         self.entry.bind("<Return>", self._on_send)
-        self.entry.focus()
 
-        ctk.CTkButton(row,
+        self.send_btn = ctk.CTkButton(row,
                       text="SEND",
                       font=ctk.CTkFont("Courier New", 12, "bold"),
                       fg_color="#003A60",
@@ -329,27 +600,136 @@ class JarvisApp(ctk.CTk):
                       border_color=RING_MID,
                       corner_radius=4,
                       width=80,
-                      command=self._on_send).pack(side="left")
+                      command=self._on_send,
+                      state="disabled")
+        self.send_btn.pack(side="left")
 
     def _on_send(self, event=None):
+        if not self.authenticated:
+            self._add_to_transcript("SYSTEM: Please authenticate first")
+            return
         text = self.input_var.get().strip()
         if not text:
             return
         self.input_var.set("")
+        self._add_to_transcript(f"YOU: {text}")
         self.orb.set_active(True)
         self.status_lbl.configure(text="● PROCESSING", text_color=TEXT_AMBER)
         threading.Thread(target=self._process, args=(text,), daemon=True).start()
 
-    def _process(self, text):
-        time.sleep(0.8 + random.random() * 0.7)
+    def _on_voice(self):
+        if not self.authenticated:
+            self._add_to_transcript("SYSTEM: Please authenticate first")
+            return
+        self.voice_btn.configure(state="disabled", text="🎤 LISTENING...")
+        self.orb.set_active(True)
+        self.status_lbl.configure(text="● LISTENING", text_color=TEXT_AMBER)
+        threading.Thread(target=self._voice_command, daemon=True).start()
+
+    def _on_greeting(self):
+        if not self.authenticated:
+            self._add_to_transcript("SYSTEM: Please authenticate first")
+            return
+        self.orb.set_active(True)
+        self.status_lbl.configure(text="● SPEAKING", text_color=TEXT_AMBER)
+        threading.Thread(target=self._greeting_thread, daemon=True).start()
+
+    def _greeting_thread(self):
+        msg = greeting()
+        self._add_to_transcript(f"JARVIS: {msg}")
+        speak(msg)
         self.after(0, lambda: (
             self.orb.set_active(False),
             self.status_lbl.configure(text="● ONLINE", text_color=TEXT_GREEN)
         ))
 
+    def _voice_command(self):
+        cmd = take_voice_command().strip().lower()
+        self.after(0, lambda: self.voice_btn.configure(state="normal", text="🎤 VOICE COMMAND"))
+        if cmd:
+            self._add_to_transcript(f"YOU: {cmd}")
+            self._process(cmd)
+        else:
+            self.after(0, lambda: (
+                self.orb.set_active(False),
+                self.status_lbl.configure(text="● ONLINE", text_color=TEXT_GREEN)
+            ))
+
+    def _process(self, text):
+        cmd = text.strip().lower()
+        response = ""
+
+        if cmd in {"exit", "quit", "sleep"}:
+            response = "Goodbye."
+        elif cmd in {"hello", "hi", "hey"}:
+            response = greeting()
+        elif cmd.startswith("open "):
+            app_name = cmd.replace("open ", "", 1)
+            response = open_windows_app(app_name)
+        else:
+            response = "Please say hello, or use open command for a Windows app."
+
+        self._add_to_transcript(f"JARVIS: {response}")
+        speak(response)
+        
+        self.after(0, lambda: (
+            self.orb.set_active(False),
+            self.status_lbl.configure(text="● ONLINE", text_color=TEXT_GREEN)
+        ))
+
+    def _authenticate(self):
+        self._add_to_transcript("SYSTEM: Starting face authentication...")
+        self.after(0, lambda: self.status_lbl.configure(
+            text="● AUTHENTICATING", text_color=STATUS_RED))
+        
+        result = authenticate_face()
+        self.authenticated = result
+        
+        if result:
+            self._add_to_transcript("SYSTEM: Authentication successful!")
+            # Enable all controls
+            self.after(0, lambda: (
+                self.voice_btn.configure(state="normal"),
+                self.greeting_btn.configure(state="normal"),
+                self.clear_btn.configure(state="normal"),
+                self.entry.configure(state="normal"),
+                self.send_btn.configure(state="normal"),
+                self.entry.focus()
+            ))
+            msg = greeting()
+            self._add_to_transcript(f"JARVIS: {msg}")
+            speak(msg)
+            self.after(0, lambda: self.status_lbl.configure(
+                text="● ONLINE", text_color=TEXT_GREEN))
+        else:
+            self._add_to_transcript("SYSTEM: Authentication failed. Try again.")
+            # Keep controls disabled
+            self.after(0, lambda: (
+                self.voice_btn.configure(state="disabled"),
+                self.greeting_btn.configure(state="disabled"),
+                self.clear_btn.configure(state="disabled"),
+                self.entry.configure(state="disabled"),
+                self.send_btn.configure(state="disabled"),
+                self.status_lbl.configure(text="● LOCKED", text_color=STATUS_RED)
+            ))
+
+    def _add_to_transcript(self, text):
+        def update():
+            self.transcript.configure(state="normal")
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            self.transcript.insert("end", f"[{timestamp}] {text}\n")
+            self.transcript.see("end")
+            self.transcript.configure(state="disabled")
+        self.after(0, update)
+
+    def _clear_transcript(self):
+        self.transcript.configure(state="normal")
+        self.transcript.delete("1.0", "end")
+        self.transcript.configure(state="disabled")
+
     def _start_clock(self):
         self.clock_lbl.configure(
-            text=datetime.now().strftime("SYS  %H:%M:%S  //  %d.%m.%Y"))
+            text=datetime.datetime.now().strftime("SYS  %H:%M:%S  //  %d.%m.%Y"))
         self.after(1000, self._start_clock)
 
 
