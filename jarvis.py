@@ -5,6 +5,16 @@ import subprocess
 import cv2
 import speech_recognition as sr
 
+from features.calculator import calculate_text
+from features.system_info import (
+    BatteryNotificationState,
+    check_battery_notifications,
+    get_battery_status_text,
+    get_system_info_text,
+)
+from features.tell_time import get_current_time_text
+from features.todo_list import add_task, remove_task, view_tasks
+
 
 def speak(text: str) -> None:
     """Use PowerShell's native System.Speech for reliable Windows text-to-speech."""
@@ -112,7 +122,7 @@ def authenticate_face() -> bool:
     return False
 
 
-def open_windows_app(app_name: str) -> None:
+def open_windows_app(app_name: str) -> str:
     app_map = {
         "notepad": "notepad.exe",
         "calculator": "calc.exe",
@@ -129,19 +139,63 @@ def open_windows_app(app_name: str) -> None:
     key = app_name.strip().lower()
     target = app_map.get(key)
     if not target:
-        speak("I only support a few built-in Windows apps right now.")
+        message = "I only support a few built-in Windows apps right now."
         print("Supported apps:", ", ".join(sorted(app_map.keys())))
-        return
+        return message
 
     try:
         if target.endswith(":"):
             os.startfile(target)
         else:
             subprocess.Popen([target], shell=False)
-        speak(f"Opening {key}.")
+        return f"Opening {key}."
     except Exception as exc:
-        speak(f"I could not open {key}.")
         print(f"Error: {exc}")
+        return f"I could not open {key}."
+
+
+def process_command(cmd: str) -> str:
+    """Route voice command text to the corresponding feature response."""
+    if cmd in {"exit", "quit", "sleep"}:
+        return "Goodbye."
+
+    if cmd in {"hello", "hi", "hey"}:
+        hour = int(datetime.datetime.now().hour)
+        if 0 <= hour < 12:
+            return "Good morning. I am JARVIS."
+        if 12 <= hour < 18:
+            return "Good afternoon. I am JARVIS."
+        return "Good evening. I am JARVIS."
+
+    if cmd.startswith("open "):
+        app_name = cmd.replace("open ", "", 1)
+        return open_windows_app(app_name)
+
+    if cmd in {"tell time", "what time is it", "time"}:
+        return get_current_time_text()
+
+    if cmd in {"system info", "system information", "pc status"}:
+        return get_system_info_text()
+
+    if cmd in {"battery", "battery status"}:
+        return get_battery_status_text()
+
+    if cmd.startswith("calculate "):
+        return calculate_text(cmd.replace("calculate ", "", 1))
+
+    if cmd.startswith("what is "):
+        return calculate_text(cmd.replace("what is ", "", 1))
+
+    if cmd.startswith("add task "):
+        return add_task(cmd.replace("add task ", "", 1))
+
+    if cmd in {"show tasks", "view tasks", "list tasks", "todo list"}:
+        return view_tasks()
+
+    if cmd.startswith("remove task "):
+        return remove_task(cmd.replace("remove task ", "", 1))
+
+    return "Unknown command. Try: tell time, system info, calculate, or todo commands."
 
 
 def main() -> None:
@@ -154,24 +208,26 @@ def main() -> None:
         speak("Please try again.")
 
     greeting()
-    print("Speak commands like: 'open notepad', 'open calculator', 'hello', 'exit'")
+    print(
+        "Speak commands like: 'open notepad', 'tell time', 'system info', "
+        "'calculate 25 plus 5', 'add task buy milk', 'view tasks', 'exit'"
+    )
+    battery_state = BatteryNotificationState()
 
     while True:
+        battery_message = check_battery_notifications(battery_state)
+        if battery_message:
+            speak(battery_message)
+
         cmd = take_voice_command().strip().lower()
 
         if not cmd:
             continue
-        if cmd in {"exit", "quit", "sleep"}:
-            speak("Goodbye.")
-            break
-        if cmd in {"hello", "hi", "hey"}:
-            greeting()
-            continue
-        if cmd.startswith("open "):
-            open_windows_app(cmd.replace("open ", "", 1))
-            continue
+        response = process_command(cmd)
+        speak(response)
 
-        speak("Please say hello, or use open command for a Windows app.")
+        if cmd in {"exit", "quit", "sleep"}:
+            break
 
 
 if __name__ == "__main__":

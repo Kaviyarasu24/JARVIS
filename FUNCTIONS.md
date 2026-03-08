@@ -111,8 +111,8 @@
 ### Information & Search (0/5)
 - ☐ **Wikipedia Search** - Search and read Wikipedia summaries
 - ☐ **Weather Report** - Get temperature, humidity, wind speed, current location
-- ☐ **Tell Time** - Announce current time on demand
-- ☐ **System Info** - CPU usage, battery percentage, RAM status
+- ☑ **Tell Time** - Announce current time on demand
+- ☑ **System Info** - CPU usage, battery percentage, RAM status
 - ☐ **Dictionary/Spell Check** - Word definitions with auto-correct suggestions
 
 ### Web & Media (0/5) - Web Scraping Based
@@ -133,7 +133,7 @@
 - ☐ **Browser Control** - Back, forward, refresh, close tabs
 
 ### Productivity (0/5)
-- ☐ **Todo List** - Add/remove/view tasks (persisted to file)
+- ☑ **Todo List** - Add/remove/view tasks (persisted to file)
 - ☐ **Email Sending** - Send emails via Gmail SMTP
 - ☐ **Screenshot** - Capture screen and save to file
 - ☐ **Take Notes** - Voice-to-text note saving
@@ -155,7 +155,7 @@
 ### Advanced Features (0/13)
 - ☐ **Alarm/Reminder** - Set timed voice alerts
 - ☐ **Weather Forecasting** - Multi-day weather forecast (scraped from Weather.gov)
-- ☐ **Calculator** - Voice-based math operations
+- ☑ **Calculator** - Voice-based math operations
 - ☐ **Conversation Memory** - Remember user preferences and past queries
 - ☐ **Multi-language Support** - Support Hindi, Spanish, French, etc.
 - ☐ **Natural Language Processing** - Better command understanding
@@ -188,8 +188,8 @@
 ### Phase 1: High Impact (Must Have)
 1. ☐ **Wikipedia Search** - Easy, widely useful
 2. ☐ **Weather Report** - Real-world utility
-3. ☐ **Tell Time** - Simple, essential
-4. ☐ **Todo List** - Productivity booster
+3. ☑ **Tell Time** - Simple, essential
+4. ☑ **Todo List** - Productivity booster
 5. ☐ **Open Any Website** - Browser automation foundation
 6. ☐ **Google Search with Voice** - Core web access
 
@@ -198,7 +198,7 @@
 8. ☐ **Fill Forms** - Browser automation
 9. ☐ **Email Sending** - Communication
 10. ☐ **Tell Jokes** - Entertainment
-11. ☐ **System Info** - Diagnostics
+11. ☑ **System Info** - Diagnostics
 12. ☐ **News Headlines** - Information
 13. ☐ **Browser Control** - Tab management
 
@@ -206,7 +206,7 @@
 14. ☐ **Google Maps** - Location services
 15. ☐ **Play Music** - Entertainment
 16. ☐ **Screenshot** - Capture content
-17. ☐ **Calculator** - Math operations
+17. ☑ **Calculator** - Math operations
 18. ☐ **Alarm/Reminder** - Time management
 19. ☐ **Extract Content** - Data retrieval
 20. ☐ **Take Notes** - Note-taking

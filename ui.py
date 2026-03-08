@@ -16,6 +16,16 @@ import subprocess
 import cv2
 import speech_recognition as sr
 
+from features.calculator import calculate_text
+from features.system_info import (
+    BatteryNotificationState,
+    check_battery_notifications,
+    get_battery_status_text,
+    get_system_info_text,
+)
+from features.tell_time import get_current_time_text
+from features.todo_list import add_task, remove_task, view_tasks
+
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
@@ -398,8 +408,10 @@ class JarvisApp(ctk.CTk):
         self.resizable(True, True)
         self.configure(fg_color=BG)
         self.authenticated = False
+        self.battery_state = BatteryNotificationState()
         self._build_ui()
         self._start_clock()
+        self._check_battery_notifications()
         # Start authentication in background
         threading.Thread(target=self._authenticate, daemon=True).start()
 
@@ -550,6 +562,10 @@ class JarvisApp(ctk.CTk):
         info_text = (
             "Commands:\n"
             "• 'open [app]' - Open Windows apps\n"
+            "• 'tell time' - Current time\n"
+            "• 'system info' - CPU/RAM/Battery\n"
+            "• 'calculate 25 plus 5' - Calculator\n"
+            "• 'add task ...' / 'view tasks' / 'remove task ...'\n"
             "• 'hello' / 'hi' - Greeting\n"
             "• 'exit' / 'quit' - Stop listening\n\n"
             "Supported apps:\n"
@@ -666,8 +682,24 @@ class JarvisApp(ctk.CTk):
         elif cmd.startswith("open "):
             app_name = cmd.replace("open ", "", 1)
             response = open_windows_app(app_name)
+        elif cmd in {"tell time", "what time is it", "time"}:
+            response = get_current_time_text()
+        elif cmd in {"system info", "system information", "pc status"}:
+            response = get_system_info_text()
+        elif cmd in {"battery", "battery status"}:
+            response = get_battery_status_text()
+        elif cmd.startswith("calculate "):
+            response = calculate_text(cmd.replace("calculate ", "", 1))
+        elif cmd.startswith("what is "):
+            response = calculate_text(cmd.replace("what is ", "", 1))
+        elif cmd.startswith("add task "):
+            response = add_task(cmd.replace("add task ", "", 1))
+        elif cmd in {"show tasks", "view tasks", "list tasks", "todo list"}:
+            response = view_tasks()
+        elif cmd.startswith("remove task "):
+            response = remove_task(cmd.replace("remove task ", "", 1))
         else:
-            response = "Please say hello, or use open command for a Windows app."
+            response = "Unknown command. Try time, system info, calculate, or todo commands."
 
         self._add_to_transcript(f"JARVIS: {response}")
         speak(response)
@@ -731,6 +763,16 @@ class JarvisApp(ctk.CTk):
         self.clock_lbl.configure(
             text=datetime.datetime.now().strftime("SYS  %H:%M:%S  //  %d.%m.%Y"))
         self.after(1000, self._start_clock)
+
+    def _check_battery_notifications(self):
+        if self.authenticated:
+            battery_message = check_battery_notifications(self.battery_state)
+            if battery_message:
+                self._add_to_transcript(f"JARVIS: {battery_message}")
+                speak(battery_message)
+
+        # Poll every 60 seconds to catch battery threshold events.
+        self.after(60000, self._check_battery_notifications)
 
 
 # ─── Entry ────────────────────────────────────────────────────────────────────

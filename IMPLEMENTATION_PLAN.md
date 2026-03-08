@@ -12,21 +12,21 @@
 **Goal**: Core infrastructure and basic utilities  
 **Estimated Time**: 2-3 days
 
-- [ ] **Tell Time** - Get and speak current time
+- [x] **Tell Time** - Get and speak current time
   - **File**: `features/tell_time.py`
   - **Dependencies**: `datetime`
   - **Complexity**: ⭐ (Very Easy)
   - **Description**: Simple function to announce time on demand
   - **Testing**: Manual voice command test
 
-- [ ] **System Info** - CPU, RAM, Battery, Disk
+- [x] **System Info** - CPU, RAM, Battery, Disk
   - **File**: `features/system_info.py`
   - **Dependencies**: `psutil`
   - **Complexity**: ⭐ (Very Easy)
   - **Description**: Get and report system statistics
   - **Testing**: Manual voice command test
 
-- [ ] **Calculator** - Voice-based math operations
+- [x] **Calculator** - Voice-based math operations
   - **File**: `features/calculator.py`
   - **Dependencies**: `eval()` or `sympy`
   - **Complexity**: ⭐⭐ (Easy)
@@ -40,7 +40,7 @@
   - **Description**: Speak random jokes on demand
   - **Testing**: Manual voice command test
 
-- [ ] **Todo List** - Add/remove/view tasks (persisted to file)
+- [x] **Todo List** - Add/remove/view tasks (persisted to file)
   - **File**: `features/todo_list.py`
   - **Dependencies**: `json` or `sqlite3`
   - **Complexity**: ⭐⭐ (Easy)
