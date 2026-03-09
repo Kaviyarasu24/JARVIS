@@ -80,7 +80,7 @@ def greeting() -> str:
         msg = "Good afternoon."
     else:
         msg = "Good evening."
-    msg += " I am JARVIS. I can open Windows apps for you."
+    msg += " Welcome back sir. How can I assist you today?"
     return msg
 
 
@@ -127,7 +127,7 @@ def authenticate_face() -> bool:
         print("Could not access webcam.")
         return False
 
-    speak("Starting face recognition. Please look at the camera.")
+    speak("Starting face recognition ")
     matched_frames = 0
     max_frames = 120
     frame_count = 0
@@ -148,14 +148,14 @@ def authenticate_face() -> bool:
             if matched_frames >= 3:
                 cam.release()
                 cv2.destroyAllWindows()
-                speak("Optical Face Recognition Done. Welcome.")
+                speak("Face Recognition Done. Welcome back sir.")
                 return True
 
         frame_count += 1
 
     cam.release()
     cv2.destroyAllWindows()
-    speak("Optical Face Recognition Failed.")
+    speak("Face recognition failed. Access denied.")
     return False
 
 
@@ -578,7 +578,9 @@ class JarvisApp(ctk.CTk):
             text=info_text,
             font=ctk.CTkFont("Courier New", 9),
             text_color=TEXT_SUB,
-            justify="left"
+            justify="left",
+            anchor="w",
+            wraplength=245
         ).pack(padx=15, pady=(20, 15), fill="x")
 
         # ── Floating input — bottom right ─────────────────────────────────
@@ -764,15 +766,29 @@ class JarvisApp(ctk.CTk):
             text=datetime.datetime.now().strftime("SYS  %H:%M:%S  //  %d.%m.%Y"))
         self.after(1000, self._start_clock)
 
+    def _speak_battery_notification(self, message):
+        # Keep TTS off the UI thread so center animation can continue rendering.
+        self.orb.set_active(True)
+        self.status_lbl.configure(text="● SPEAKING", text_color=TEXT_AMBER)
+
+        def worker():
+            speak(message)
+            self.after(0, lambda: (
+                self.orb.set_active(False),
+                self.status_lbl.configure(text="● ONLINE", text_color=TEXT_GREEN)
+            ))
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def _check_battery_notifications(self):
         if self.authenticated:
             battery_message = check_battery_notifications(self.battery_state)
             if battery_message:
                 self._add_to_transcript(f"JARVIS: {battery_message}")
-                speak(battery_message)
+                self._speak_battery_notification(battery_message)
 
-        # Poll every 60 seconds to catch battery threshold events.
-        self.after(60000, self._check_battery_notifications)
+        # Poll very frequently so charger connect/disconnect is announced quickly.
+        self.after(1000, self._check_battery_notifications)
 
 
 # ─── Entry ────────────────────────────────────────────────────────────────────

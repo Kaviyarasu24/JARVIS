@@ -10,6 +10,7 @@ import psutil
 class BatteryNotificationState:
     low_battery_notified: bool = False
     charging_sixty_notified: bool = False
+    last_power_plugged: Optional[bool] = None
 
 
 def _format_bytes_gb(value: float) -> float:
@@ -48,6 +49,18 @@ def check_battery_notifications(state: BatteryNotificationState) -> Optional[str
     battery = psutil.sensors_battery()
     if battery is None:
         return None
+
+    # Detect charger state transitions and announce them immediately.
+    if state.last_power_plugged is None:
+        state.last_power_plugged = battery.power_plugged
+    elif state.last_power_plugged != battery.power_plugged:
+        state.last_power_plugged = battery.power_plugged
+        if battery.power_plugged:
+            state.low_battery_notified = False
+            return f"Charger connected. Battery is now at {battery.percent:.0f} percent."
+
+        state.charging_sixty_notified = False
+        return f"Charger disconnected. Battery is at {battery.percent:.0f} percent."
 
     if not battery.power_plugged and battery.percent < 30:
         if not state.low_battery_notified:
