@@ -17,6 +17,7 @@ import cv2
 import speech_recognition as sr
 
 from features.calculator import calculate_text
+from features.command_normalizer import normalize_command
 from features.system_info import (
     BatteryNotificationState,
     check_battery_notifications,
@@ -674,7 +675,7 @@ class JarvisApp(ctk.CTk):
             ))
 
     def _process(self, text):
-        cmd = text.strip().lower()
+        cmd = normalize_command(text).strip().lower()
         response = ""
 
         if cmd in {"exit", "quit", "sleep"}:

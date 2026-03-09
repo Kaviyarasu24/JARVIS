@@ -6,6 +6,7 @@ import cv2
 import speech_recognition as sr
 
 from features.calculator import calculate_text
+from features.command_normalizer import normalize_command
 from features.system_info import (
     BatteryNotificationState,
     check_battery_notifications,
@@ -156,6 +157,8 @@ def open_windows_app(app_name: str) -> str:
 
 def process_command(cmd: str) -> str:
     """Route voice command text to the corresponding feature response."""
+    cmd = normalize_command(cmd).strip().lower()
+
     if cmd in {"exit", "quit", "sleep"}:
         return "Goodbye."
 
