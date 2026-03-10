@@ -20,7 +20,7 @@ def _is_normalized_command(text: str) -> bool:
         "turn on bluetooth", "turn off bluetooth", "bluetooth on", "bluetooth off",
     }:
         return True
-    return bool(re.match(r"^(calculate|open|add task|remove task|ping)\s+.+$", value))
+    return bool(re.match(r"^(calculate|open|add task|remove task|ping|search wikipedia|wikipedia)\s+.+$", value))
 
 
 def _cleanup_response(text: str) -> str:
@@ -81,6 +81,8 @@ def _extract_allowed_command(text: str) -> str:
         r"add task\s+[^\n\r]+",
         r"remove task\s+[^\n\r]+",
         r"ping\s+[^\n\r]+",
+        r"search wikipedia\s+[^\n\r]+",
+        r"wikipedia\s+[^\n\r]+",
     )
     for pattern in patterns:
         match = re.search(pattern, cleaned)
@@ -179,6 +181,19 @@ def _fallback_normalize(user_input: str) -> str:
     if any(phrase in text for phrase in ("active connection", "network connection", "open connection")):
         return "active connections"
 
+    # Wikipedia search triggers — only fire on explicit 'wikipedia' keyword
+    for trigger in ("search wikipedia for", "search wikipedia", "wikipedia search"):
+        if trigger in text:
+            topic = text.split(trigger, 1)[1].strip()
+            if topic:
+                return f"search wikipedia {topic}"
+
+    if "wikipedia" in text:
+        # extract whatever follows 'wikipedia'
+        topic = text.split("wikipedia", 1)[1].strip()
+        if topic:
+            return f"wikipedia {topic}"
+
     if text.startswith("ping "):
         host = text[5:].strip()
         if host:
@@ -237,6 +252,8 @@ def normalize_command(user_input: str, model: str = DEFAULT_MODEL) -> str:
         "- network usage\n"
         "- active connections\n"
         "- ping <host>\n"
+        "- search wikipedia <topic>\n"
+        "- wikipedia <topic>\n"
         "- hello\n"
         "- exit\n"
         "If you are unsure, return the original text lowercased.\n"

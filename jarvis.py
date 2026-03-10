@@ -29,6 +29,7 @@ from features.network_status import (
 )
 from features.tell_time import get_current_time_text
 from features.todo_list import add_task, remove_task, view_tasks
+from features.wikipedia_search import search_wikipedia
 
 
 def _tts_safe(text: str) -> str:
@@ -256,7 +257,13 @@ def process_command(cmd: str) -> str:
     if cmd.startswith("ping "):
         return get_ping_text(cmd.replace("ping ", "", 1))
 
-    return "Unknown command. Try: tell time, system info, wifi, bluetooth, ip address, or todo commands."
+    if cmd.startswith("search wikipedia "):
+        return search_wikipedia(cmd.replace("search wikipedia ", "", 1))
+
+    if cmd.startswith("wikipedia "):
+        return search_wikipedia(cmd.replace("wikipedia ", "", 1))
+
+    return "Unknown command. Try: tell time, system info, wifi, bluetooth, wikipedia, or todo commands."
 
 
 def main() -> None:

@@ -5,7 +5,7 @@
 | Category | Completed | Total | Progress |
 |----------|-----------|-------|----------|
 | Core Features | 7 | 7 | 100% ✅ |
-| Information | 0 | 5 | 0% |
+| Information | 1 | 5 | 20% |
 | Browser Automation | 0 | 8 | 0% |
 | Productivity | 0 | 5 | 0% |
 | Entertainment | 0 | 4 | 0% |
@@ -13,7 +13,7 @@
 | Advanced Features | 0 | 13 | 0% |
 | Integration APIs | 0 | 6 | 0% |
 | Machine Learning | 0 | 4 | 0% |
-| **TOTAL** | **7** | **63** | **11.1%** |
+| **TOTAL** | **8** | **63** | **12.7%** |
 
 ---
 
@@ -108,8 +108,8 @@
 
 ## 📋 Features to be Added
 
-### Information & Search (0/5)
-- ☐ **Wikipedia Search** - Search and read Wikipedia summaries
+### Information & Search (1/5)
+- ☑ **Wikipedia Search** - Search and read Wikipedia summaries
 - ☐ **Weather Report** - Get temperature, humidity, wind speed, current location
 - ☑ **Tell Time** - Announce current time on demand
 - ☑ **System Info** - CPU usage, battery percentage, RAM status
@@ -186,7 +186,7 @@
 ## 📊 Implementation Priority
 
 ### Phase 1: High Impact (Must Have)
-1. ☐ **Wikipedia Search** - Easy, widely useful
+1. ☑ **Wikipedia Search** - Easy, widely useful
 2. ☐ **Weather Report** - Real-world utility
 3. ☑ **Tell Time** - Simple, essential
 4. ☑ **Todo List** - Productivity booster

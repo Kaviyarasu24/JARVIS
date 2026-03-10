@@ -40,6 +40,7 @@ from features.system_info import (
 )
 from features.tell_time import get_current_time_text
 from features.todo_list import add_task, remove_task, view_tasks
+from features.wikipedia_search import search_wikipedia
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -749,8 +750,12 @@ class JarvisApp(ctk.CTk):
             response = get_active_connections_text()
         elif cmd.startswith("ping "):
             response = get_ping_text(cmd.replace("ping ", "", 1))
+        elif cmd.startswith("search wikipedia "):
+            response = search_wikipedia(cmd.replace("search wikipedia ", "", 1))
+        elif cmd.startswith("wikipedia "):
+            response = search_wikipedia(cmd.replace("wikipedia ", "", 1))
         else:
-            response = "Unknown command. Try: tell time, system info, wifi, bluetooth, ip address, or todo commands."
+            response = "Unknown command. Try: tell time, system info, wifi, bluetooth, wikipedia, or todo commands."
 
         self._add_to_transcript(f"JARVIS: {response}")
         speak(response)
