@@ -18,6 +18,18 @@ import speech_recognition as sr
 
 from features.calculator import calculate_text
 from features.command_normalizer import normalize_command
+from features.network_status import (
+    get_active_connections_text,
+    get_bluetooth_status_text,
+    get_ip_address_text,
+    get_network_interfaces_text,
+    get_network_usage_text,
+    get_ping_text,
+    get_public_ip_text,
+    get_wifi_status_text,
+    toggle_bluetooth,
+    toggle_wifi,
+)
 from features.system_info import (
     BatteryNotificationState,
     check_battery_notifications,
@@ -701,8 +713,33 @@ class JarvisApp(ctk.CTk):
             response = view_tasks()
         elif cmd.startswith("remove task "):
             response = remove_task(cmd.replace("remove task ", "", 1))
+        # ---- Network features ----
+        elif cmd in {"wifi", "wifi status", "wi-fi", "wi-fi status", "wireless"}:
+            response = get_wifi_status_text()
+        elif cmd in {"turn on wifi", "enable wifi", "wifi on"}:
+            response = toggle_wifi(True)
+        elif cmd in {"turn off wifi", "disable wifi", "wifi off"}:
+            response = toggle_wifi(False)
+        elif cmd in {"bluetooth", "bluetooth status", "bt status"}:
+            response = get_bluetooth_status_text()
+        elif cmd in {"turn on bluetooth", "enable bluetooth", "bluetooth on"}:
+            response = toggle_bluetooth(True)
+        elif cmd in {"turn off bluetooth", "disable bluetooth", "bluetooth off"}:
+            response = toggle_bluetooth(False)
+        elif cmd in {"ip address", "my ip", "local ip", "ip"}:
+            response = get_ip_address_text()
+        elif cmd in {"public ip", "external ip", "my public ip", "wan ip"}:
+            response = get_public_ip_text()
+        elif cmd in {"network interfaces", "network adapters", "interfaces"}:
+            response = get_network_interfaces_text()
+        elif cmd in {"network usage", "data usage", "bandwidth usage", "network stats"}:
+            response = get_network_usage_text()
+        elif cmd in {"active connections", "connections", "network connections"}:
+            response = get_active_connections_text()
+        elif cmd.startswith("ping "):
+            response = get_ping_text(cmd.replace("ping ", "", 1))
         else:
-            response = "Unknown command. Try time, system info, calculate, or todo commands."
+            response = "Unknown command. Try: tell time, system info, wifi, bluetooth, ip address, or todo commands."
 
         self._add_to_transcript(f"JARVIS: {response}")
         speak(response)

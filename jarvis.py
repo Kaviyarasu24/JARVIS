@@ -13,6 +13,18 @@ from features.system_info import (
     get_battery_status_text,
     get_system_info_text,
 )
+from features.network_status import (
+    get_active_connections_text,
+    get_bluetooth_status_text,
+    get_ip_address_text,
+    get_network_interfaces_text,
+    get_network_usage_text,
+    get_ping_text,
+    get_public_ip_text,
+    get_wifi_status_text,
+    toggle_bluetooth,
+    toggle_wifi,
+)
 from features.tell_time import get_current_time_text
 from features.todo_list import add_task, remove_task, view_tasks
 
@@ -198,7 +210,44 @@ def process_command(cmd: str) -> str:
     if cmd.startswith("remove task "):
         return remove_task(cmd.replace("remove task ", "", 1))
 
-    return "Unknown command. Try: tell time, system info, calculate, or todo commands."
+    # ---- Network features ----
+    if cmd in {"wifi", "wifi status", "wi-fi", "wi-fi status", "wireless"}:
+        return get_wifi_status_text()
+
+    if cmd in {"turn on wifi", "enable wifi", "wifi on"}:
+        return toggle_wifi(True)
+
+    if cmd in {"turn off wifi", "disable wifi", "wifi off"}:
+        return toggle_wifi(False)
+
+    if cmd in {"bluetooth", "bluetooth status", "bt status"}:
+        return get_bluetooth_status_text()
+
+    if cmd in {"turn on bluetooth", "enable bluetooth", "bluetooth on"}:
+        return toggle_bluetooth(True)
+
+    if cmd in {"turn off bluetooth", "disable bluetooth", "bluetooth off"}:
+        return toggle_bluetooth(False)
+
+    if cmd in {"ip address", "my ip", "local ip", "ip"}:
+        return get_ip_address_text()
+
+    if cmd in {"public ip", "external ip", "my public ip", "wan ip"}:
+        return get_public_ip_text()
+
+    if cmd in {"network interfaces", "network adapters", "interfaces"}:
+        return get_network_interfaces_text()
+
+    if cmd in {"network usage", "data usage", "bandwidth usage", "network stats"}:
+        return get_network_usage_text()
+
+    if cmd in {"active connections", "connections", "network connections"}:
+        return get_active_connections_text()
+
+    if cmd.startswith("ping "):
+        return get_ping_text(cmd.replace("ping ", "", 1))
+
+    return "Unknown command. Try: tell time, system info, wifi, bluetooth, ip address, or todo commands."
 
 
 def main() -> None:

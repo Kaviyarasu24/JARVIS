@@ -11,9 +11,16 @@ DEFAULT_MODEL: Final[str] = "tinyllama"
 
 def _is_normalized_command(text: str) -> bool:
     value = text.strip().lower()
-    if value in {"tell time", "system info", "battery", "view tasks", "hello", "exit"}:
+    if value in {
+        "tell time", "system info", "battery", "view tasks", "hello", "exit",
+        "wifi", "wifi status", "bluetooth", "bluetooth status",
+        "ip address", "public ip", "network interfaces",
+        "network usage", "data usage", "active connections",
+        "turn on wifi", "turn off wifi", "wifi on", "wifi off",
+        "turn on bluetooth", "turn off bluetooth", "bluetooth on", "bluetooth off",
+    }:
         return True
-    return bool(re.match(r"^(calculate|open|add task|remove task)\s+.+$", value))
+    return bool(re.match(r"^(calculate|open|add task|remove task|ping)\s+.+$", value))
 
 
 def _cleanup_response(text: str) -> str:
@@ -45,6 +52,24 @@ def _extract_allowed_command(text: str) -> str:
         "view tasks",
         "hello",
         "exit",
+        "turn on wifi",
+        "turn off wifi",
+        "wifi on",
+        "wifi off",
+        "wifi status",
+        "wifi",
+        "turn on bluetooth",
+        "turn off bluetooth",
+        "bluetooth on",
+        "bluetooth off",
+        "bluetooth status",
+        "bluetooth",
+        "public ip",
+        "ip address",
+        "network interfaces",
+        "network usage",
+        "data usage",
+        "active connections",
     )
     for keyword in exact_keywords:
         if keyword in cleaned:
@@ -55,6 +80,7 @@ def _extract_allowed_command(text: str) -> str:
         r"open\s+[^\n\r]+",
         r"add task\s+[^\n\r]+",
         r"remove task\s+[^\n\r]+",
+        r"ping\s+[^\n\r]+",
     )
     for pattern in patterns:
         match = re.search(pattern, cleaned)
@@ -122,6 +148,42 @@ def _fallback_normalize(user_input: str) -> str:
     if any(word in text for word in ("battery", "charge", "power")):
         return "battery"
 
+    if any(word in text for word in ("wifi", "wi-fi", "wireless", "wlan", "wi fi")):
+        is_bt = any(w in text for w in ("bluetooth", "bt "))
+        if not is_bt:
+            if any(w in text for w in ("turn on", "enable", " on")):
+                return "turn on wifi"
+            if any(w in text for w in ("turn off", "disable", " off")):
+                return "turn off wifi"
+            return "wifi status"
+
+    if any(word in text for word in ("bluetooth", "bt ", "blue tooth")):
+        if any(w in text for w in ("turn on", "enable", " on")):
+            return "turn on bluetooth"
+        if any(w in text for w in ("turn off", "disable", " off")):
+            return "turn off bluetooth"
+        return "bluetooth status"
+
+    if "public ip" in text or "external ip" in text or "wan ip" in text:
+        return "public ip"
+
+    if any(phrase in text for phrase in ("ip address", "my ip", "local ip", " ip ")):
+        return "ip address"
+
+    if any(phrase in text for phrase in ("network interface", "network adapter")):
+        return "network interfaces"
+
+    if any(phrase in text for phrase in ("network usage", "data usage", "bandwidth", "data sent", "data received")):
+        return "network usage"
+
+    if any(phrase in text for phrase in ("active connection", "network connection", "open connection")):
+        return "active connections"
+
+    if text.startswith("ping "):
+        host = text[5:].strip()
+        if host:
+            return f"ping {host}"
+
     if any(op in text for op in ("plus", "minus", "times", "divided", "+", "-", "*", "/", "x")) and re.search(r"\d", text):
         return f"calculate {text}"
 
@@ -163,6 +225,18 @@ def normalize_command(user_input: str, model: str = DEFAULT_MODEL) -> str:
         "- add task <text>\n"
         "- view tasks\n"
         "- remove task <text>\n"
+        "- wifi status\n"
+        "- turn on wifi\n"
+        "- turn off wifi\n"
+        "- bluetooth status\n"
+        "- turn on bluetooth\n"
+        "- turn off bluetooth\n"
+        "- ip address\n"
+        "- public ip\n"
+        "- network interfaces\n"
+        "- network usage\n"
+        "- active connections\n"
+        "- ping <host>\n"
         "- hello\n"
         "- exit\n"
         "If you are unsure, return the original text lowercased.\n"
