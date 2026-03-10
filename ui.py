@@ -65,21 +65,28 @@ BORDER       = "#0D3550"       # frame borders
 
 
 # ─── JARVIS Core Functions ────────────────────────────────────────────────────
+def _tts_safe(text: str) -> str:
+    """Transliterate to ASCII and escape single quotes for PowerShell."""
+    import unicodedata
+    ascii_text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
+    return ascii_text.replace("'", "''")
+
+
 def speak(text: str) -> None:
     """Use PowerShell's native System.Speech for reliable Windows text-to-speech."""
-    message = f"{text}"
-    print(message)
+    print(text)
+    safe = _tts_safe(text)
     try:
         ps_cmd = f'''
 Add-Type -AssemblyName System.Speech
 $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer
-$speak.Speak('{message}')
+$speak.Speak('{safe}')
 '''
         subprocess.run(
             ['powershell', '-NoProfile', '-Command', ps_cmd],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=15
+            timeout=30
         )
     except Exception as exc:
         print(f"Speech error: {exc}")

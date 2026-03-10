@@ -236,7 +236,7 @@ def get_public_ip_text() -> str:
 # ---------------------------------------------------------------------------
 
 def get_network_interfaces_text() -> str:
-    """Return a summary of all active (up) network interfaces with their IPs."""
+    """Return a summary of active (up) network interfaces — capped for TTS."""
     try:
         stats = psutil.net_if_stats()
         addrs = psutil.net_if_addrs()
@@ -252,15 +252,16 @@ def get_network_interfaces_text() -> str:
             line = iface
             if ip:
                 line += f" ({ip})"
-            if stat.speed > 0:
-                line += f" at {stat.speed} Mbps"
             active.append(line)
 
         if not active:
             return "No active network interfaces found."
         if len(active) == 1:
-            return f"Active network interface: {active[0]}."
-        return f"{len(active)} active interfaces: " + ", ".join(active) + "."
+            return f"Active interface: {active[0]}."
+        # Cap at 3 names to keep TTS response short
+        preview = ", ".join(active[:3])
+        suffix = f", and {len(active) - 3} more" if len(active) > 3 else ""
+        return f"{len(active)} active interfaces: {preview}{suffix}."
     except Exception as exc:
         return f"Could not retrieve network interfaces: {exc}"
 
@@ -270,17 +271,19 @@ def get_network_interfaces_text() -> str:
 # ---------------------------------------------------------------------------
 
 def get_network_usage_text() -> str:
-    """Return cumulative bytes sent and received since the last system boot."""
+    """Return data sent and received since the last system boot."""
     try:
         io = psutil.net_io_counters()
-        sent_mb = io.bytes_sent / (1024 ** 2)
-        recv_mb = io.bytes_recv / (1024 ** 2)
-        packets_sent = io.packets_sent
-        packets_recv = io.packets_recv
+        sent = io.bytes_sent
+        recv = io.bytes_recv
+
+        def _fmt(b: int) -> str:
+            if b >= 1024 ** 3:
+                return f"{b / 1024**3:.1f} gigabytes"
+            return f"{b / 1024**2:.0f} megabytes"
+
         return (
-            f"Since last boot, your system has sent {sent_mb:.1f} megabytes "
-            f"({packets_sent:,} packets) and received {recv_mb:.1f} megabytes "
-            f"({packets_recv:,} packets)."
+            f"Since last boot: sent {_fmt(sent)}, received {_fmt(recv)}."
         )
     except Exception as exc:
         return f"Could not retrieve network usage: {exc}"
