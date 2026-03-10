@@ -5,8 +5,117 @@ import re
 import socket
 import subprocess
 import urllib.request
+from dataclasses import dataclass, field
+from typing import Optional
 
 import psutil
+
+
+# ---------------------------------------------------------------------------
+# Network notification state (mirrors BatteryNotificationState pattern)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class NetworkNotificationState:
+    # WiFi
+    last_wifi_connected: Optional[bool] = None
+    last_wifi_ssid: Optional[str] = None
+    # Bluetooth (track the set of connected real-device names)
+    last_bt_running: Optional[bool] = None
+    last_bt_devices: set[str] = field(default_factory=set)
+
+
+def _get_wifi_connected() -> tuple[bool, str]:
+    """Return (is_connected, ssid). Fast — no heavy parsing."""
+    try:
+        result = subprocess.run(
+            ["netsh", "wlan", "show", "interfaces"],
+            capture_output=True, text=True, timeout=5,
+        )
+        output = result.stdout
+        state_match = re.search(r"^\s+State\s*:\s*(.+)", output, re.MULTILINE | re.IGNORECASE)
+        ssid_match = re.search(r"^\s+SSID\s*:\s*(?!BSSID)(.+)", output, re.MULTILINE | re.IGNORECASE)
+        connected = (state_match.group(1).strip().lower() == "connected") if state_match else False
+        ssid = ssid_match.group(1).strip() if (ssid_match and connected) else ""
+        return connected, ssid
+    except Exception:
+        return False, ""
+
+
+def _get_bt_state() -> tuple[bool, set[str]]:
+    """Return (is_running, set_of_real_device_names)."""
+    try:
+        svc_result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-Service bthserv -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Status"],
+            capture_output=True, text=True, timeout=5,
+        )
+        running = svc_result.stdout.strip().lower() == "running"
+        if not running:
+            return False, set()
+
+        dev_result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-PnpDevice -Class Bluetooth -Status OK -ErrorAction SilentlyContinue | "
+             "Select-Object -ExpandProperty FriendlyName"],
+            capture_output=True, text=True, timeout=8,
+        )
+        raw = [ln.strip() for ln in dev_result.stdout.strip().splitlines() if ln.strip()]
+        devices = {d for d in raw if _is_real_bt_device(d)}
+        return True, devices
+    except Exception:
+        return False, set()
+
+
+def check_network_notifications(state: NetworkNotificationState) -> Optional[str]:
+    """Return an instant notification string when WiFi or Bluetooth state changes."""
+    messages: list[str] = []
+
+    # ── WiFi ──────────────────────────────────────────────────────────────
+    connected, ssid = _get_wifi_connected()
+
+    if state.last_wifi_connected is None:
+        # First poll — just record baseline, no announcement
+        state.last_wifi_connected = connected
+        state.last_wifi_ssid = ssid
+    else:
+        if connected and not state.last_wifi_connected:
+            msg = f"Wi-Fi connected to {ssid}." if ssid else "Wi-Fi connected."
+            messages.append(msg)
+        elif not connected and state.last_wifi_connected:
+            prev = state.last_wifi_ssid
+            msg = f"Wi-Fi disconnected from {prev}." if prev else "Wi-Fi disconnected."
+            messages.append(msg)
+        elif connected and ssid and ssid != state.last_wifi_ssid:
+            messages.append(f"Wi-Fi switched to {ssid}.")
+
+        state.last_wifi_connected = connected
+        state.last_wifi_ssid = ssid
+
+    # ── Bluetooth ─────────────────────────────────────────────────────────
+    bt_running, bt_devices = _get_bt_state()
+
+    if state.last_bt_running is None:
+        # First poll — baseline only
+        state.last_bt_running = bt_running
+        state.last_bt_devices = bt_devices
+    else:
+        if bt_running and not state.last_bt_running:
+            messages.append("Bluetooth turned on.")
+        elif not bt_running and state.last_bt_running:
+            messages.append("Bluetooth turned off.")
+        elif bt_running:
+            newly_connected = bt_devices - state.last_bt_devices
+            newly_disconnected = state.last_bt_devices - bt_devices
+            for d in sorted(newly_connected):
+                messages.append(f"{d} connected via Bluetooth.")
+            for d in sorted(newly_disconnected):
+                messages.append(f"{d} disconnected from Bluetooth.")
+
+        state.last_bt_running = bt_running
+        state.last_bt_devices = bt_devices
+
+    return " ".join(messages) if messages else None
 
 
 # ---------------------------------------------------------------------------

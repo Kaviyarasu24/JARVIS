@@ -29,6 +29,8 @@ from features.network_status import (
     get_wifi_status_text,
     toggle_bluetooth,
     toggle_wifi,
+    NetworkNotificationState,
+    check_network_notifications,
 )
 from features.system_info import (
     BatteryNotificationState,
@@ -429,9 +431,11 @@ class JarvisApp(ctk.CTk):
         self.configure(fg_color=BG)
         self.authenticated = False
         self.battery_state = BatteryNotificationState()
+        self.network_state = NetworkNotificationState()
         self._build_ui()
         self._start_clock()
         self._check_battery_notifications()
+        self._check_network_notifications()
         # Start authentication in background
         threading.Thread(target=self._authenticate, daemon=True).start()
 
@@ -834,6 +838,16 @@ class JarvisApp(ctk.CTk):
 
         # Poll very frequently so charger connect/disconnect is announced quickly.
         self.after(1000, self._check_battery_notifications)
+
+    def _check_network_notifications(self):
+        if self.authenticated:
+            net_message = check_network_notifications(self.network_state)
+            if net_message:
+                self._add_to_transcript(f"JARVIS: {net_message}")
+                self._speak_battery_notification(net_message)  # reuse same async-speak helper
+
+        # Poll every 3 seconds — fast enough for instant feel, light on resources.
+        self.after(3000, self._check_network_notifications)
 
 
 # ─── Entry ────────────────────────────────────────────────────────────────────

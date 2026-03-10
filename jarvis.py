@@ -24,6 +24,8 @@ from features.network_status import (
     get_wifi_status_text,
     toggle_bluetooth,
     toggle_wifi,
+    NetworkNotificationState,
+    check_network_notifications,
 )
 from features.tell_time import get_current_time_text
 from features.todo_list import add_task, remove_task, view_tasks
@@ -272,11 +274,16 @@ def main() -> None:
         "'calculate 25 plus 5', 'add task buy milk', 'view tasks', 'exit'"
     )
     battery_state = BatteryNotificationState()
+    network_state = NetworkNotificationState()
 
     while True:
         battery_message = check_battery_notifications(battery_state)
         if battery_message:
             speak(battery_message)
+
+        net_message = check_network_notifications(network_state)
+        if net_message:
+            speak(net_message)
 
         cmd = take_voice_command().strip().lower()
 
