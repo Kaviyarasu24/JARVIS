@@ -127,7 +127,6 @@ def _fallback_normalize(user_input: str) -> str:
         "okay",
         "i want to",
         "i need to",
-        "a ",
         " to ",
     )
     for phrase in filler_phrases:
@@ -161,7 +160,7 @@ def _fallback_normalize(user_input: str) -> str:
         return "view tasks"
 
     # Now check simple keyword commands
-    if any(word in text for word in ("time", "clock")):
+    if re.search(r'\b(time|clock)\b', text) and not re.search(r'\b(times|overtime|sometime|anytime|daytime|sometime)\b', text):
         return "tell time"
     if any(word in text for word in ("system", "cpu", "ram", "memory", "performance", "pc")):
         return "system info"
@@ -207,9 +206,21 @@ def _fallback_normalize(user_input: str) -> str:
                 return f"search wikipedia {topic}"
 
     if "wikipedia" in text:
-        topic = text.split("wikipedia", 1)[1].strip()
-        if topic:
-            return f"wikipedia {topic}"
+        idx   = text.index("wikipedia")
+        after  = text[idx + len("wikipedia"):].strip()
+        before = text[:idx].strip()
+
+        if after:
+            return f"wikipedia {after}"
+        elif before:
+            # e.g. "dhoni wikipedia" or "tell about virat kohli in wikipedia"
+            before = re.sub(r"\s+\b(in|on|from|at|the)\b\s*$", "", before).strip()
+            for prefix in ("tell me about", "tell about", "about", "search for", "search"):
+                if before.startswith(prefix):
+                    before = before[len(prefix):].strip()
+                    break
+            if before:
+                return f"wikipedia {before}"
 
     # News
     if any(w in text for w in ("news", "headlines", "top news", "latest news")):
@@ -238,7 +249,13 @@ def _fallback_normalize(user_input: str) -> str:
             return f"ping {host}"
 
     if any(op in text for op in ("plus", "minus", "times", "divided", "+", "-", "*", "/", "x")) and re.search(r"\d", text):
-        return f"calculate {text}"
+        # Strip leading 'calculate' or 'what is' so we don't double-prefix
+        expr = text
+        for strip in ("calculate ", "what is "):
+            if expr.startswith(strip):
+                expr = expr[len(strip):]
+                break
+        return f"calculate {expr}"
 
     for trigger in ("open", "launch", "start", "run"):
         if trigger in text:
@@ -250,9 +267,9 @@ def _fallback_normalize(user_input: str) -> str:
                         app = app[: -len(tail)].strip()
                 return f"open {app}"
 
-    if any(word in text for word in ("hello", "hi")):
+    if re.search(r'\b(hello|hi)\b', text):
         return "hello"
-    if any(word in text for word in ("exit", "quit", "bye", "stop", "sleep")):
+    if re.search(r'\b(exit|quit|bye|stop|sleep)\b', text):
         return "exit"
 
     return user_input.strip().lower()
