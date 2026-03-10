@@ -1,0 +1,22 @@
+{
+  "news": {
+    "places": ["Tamilnadu", "India"],
+    "max_headlines": 3
+  },
+  "weather": {
+    "places": ["Palani", "Tiruchengode"]
+  },
+  "stock": {
+    "symbols": [
+      {"name": "IDFC First Bank", "ticker": "IDFCFIRSTB.NS"},
+      {"name": "Tejas Networks",  "ticker": "TEJASNET.NS"},
+      {"name": "Tata Steel",      "ticker": "TATASTEEL.NS"}
+    ]
+  },
+  "crypto": {
+    "symbols": [
+      {"name": "Bitcoin",  "id": "bitcoin"},
+      {"name": "Ethereum", "id": "ethereum"}
+    ]
+  }
+}

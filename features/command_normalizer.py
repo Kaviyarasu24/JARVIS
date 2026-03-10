@@ -18,9 +18,13 @@ def _is_normalized_command(text: str) -> bool:
         "network usage", "data usage", "active connections",
         "turn on wifi", "turn off wifi", "wifi on", "wifi off",
         "turn on bluetooth", "turn off bluetooth", "bluetooth on", "bluetooth off",
+        "news", "latest news", "headlines", "top news",
+        "weather", "weather report", "temperature", "forecast",
+        "stock", "stock market", "stocks", "share market",
+        "crypto", "cryptocurrency", "bitcoin",
     }:
         return True
-    return bool(re.match(r"^(calculate|open|add task|remove task|ping|search wikipedia|wikipedia)\s+.+$", value))
+    return bool(re.match(r"^(calculate|open|add task|remove task|ping|search wikipedia|wikipedia|weather in)\s+.+$", value))
 
 
 def _cleanup_response(text: str) -> str:
@@ -70,6 +74,19 @@ def _extract_allowed_command(text: str) -> str:
         "network usage",
         "data usage",
         "active connections",
+        "news",
+        "latest news",
+        "headlines",
+        "weather",
+        "weather report",
+        "temperature",
+        "stock",
+        "stock market",
+        "stocks",
+        "share market",
+        "crypto",
+        "cryptocurrency",
+        "bitcoin",
     )
     for keyword in exact_keywords:
         if keyword in cleaned:
@@ -83,6 +100,7 @@ def _extract_allowed_command(text: str) -> str:
         r"ping\s+[^\n\r]+",
         r"search wikipedia\s+[^\n\r]+",
         r"wikipedia\s+[^\n\r]+",
+        r"weather in\s+[^\n\r]+",
     )
     for pattern in patterns:
         match = re.search(pattern, cleaned)
@@ -189,10 +207,30 @@ def _fallback_normalize(user_input: str) -> str:
                 return f"search wikipedia {topic}"
 
     if "wikipedia" in text:
-        # extract whatever follows 'wikipedia'
         topic = text.split("wikipedia", 1)[1].strip()
         if topic:
             return f"wikipedia {topic}"
+
+    # News
+    if any(w in text for w in ("news", "headlines", "top news", "latest news")):
+        return "news"
+
+    # Weather
+    if any(w in text for w in ("weather", "temperature", "forecast", "climate")):
+        if "in " in text:
+            place = text.split("in ", 1)[1].strip()
+            if place:
+                return f"weather in {place}"
+        return "weather"
+
+    # Stock market
+    if any(w in text for w in ("stock", "share market", "share price", "market")) and \
+            not any(w in text for w in ("crypto", "bitcoin", "ethereum", "coin")):
+        return "stock market"
+
+    # Cryptocurrency
+    if any(w in text for w in ("crypto", "cryptocurrency", "bitcoin", "ethereum", "coin")):
+        return "crypto"
 
     if text.startswith("ping "):
         host = text[5:].strip()
@@ -254,6 +292,11 @@ def normalize_command(user_input: str, model: str = DEFAULT_MODEL) -> str:
         "- ping <host>\n"
         "- search wikipedia <topic>\n"
         "- wikipedia <topic>\n"
+        "- news\n"
+        "- weather\n"
+        "- weather in <place>\n"
+        "- stock market\n"
+        "- crypto\n"
         "- hello\n"
         "- exit\n"
         "If you are unsure, return the original text lowercased.\n"

@@ -38,8 +38,11 @@ from features.system_info import (
     get_battery_status_text,
     get_system_info_text,
 )
+from features.news_headlines import get_news_text
+from features.stock_market import get_crypto_text, get_stock_text
 from features.tell_time import get_current_time_text
 from features.todo_list import add_task, remove_task, view_tasks
+from features.weather import get_weather_text
 from features.wikipedia_search import search_wikipedia
 
 ctk.set_appearance_mode("dark")
@@ -754,8 +757,19 @@ class JarvisApp(ctk.CTk):
             response = search_wikipedia(cmd.replace("search wikipedia ", "", 1))
         elif cmd.startswith("wikipedia "):
             response = search_wikipedia(cmd.replace("wikipedia ", "", 1))
+        # ---- Information features ----
+        elif cmd in {"news", "latest news", "headlines", "top news"}:
+            response = get_news_text()
+        elif cmd in {"weather", "weather report", "temperature", "forecast"}:
+            response = get_weather_text()
+        elif cmd.startswith("weather in "):
+            response = get_weather_text(cmd.replace("weather in ", "", 1).strip())
+        elif cmd in {"stock", "stock market", "stocks", "share market", "share price", "market"}:
+            response = get_stock_text()
+        elif cmd in {"crypto", "cryptocurrency", "bitcoin", "bitcoin price", "crypto price", "crypto update"}:
+            response = get_crypto_text()
         else:
-            response = "Unknown command. Try: tell time, system info, wifi, bluetooth, wikipedia, or todo commands."
+            response = "Unknown command. Try: tell time, system info, wifi, bluetooth, news, weather, stock, crypto, wikipedia, or todo commands."
 
         self._add_to_transcript(f"JARVIS: {response}")
         speak(response)

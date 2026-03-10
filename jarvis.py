@@ -27,8 +27,11 @@ from features.network_status import (
     NetworkNotificationState,
     check_network_notifications,
 )
+from features.news_headlines import get_news_text
+from features.stock_market import get_crypto_text, get_stock_text
 from features.tell_time import get_current_time_text
 from features.todo_list import add_task, remove_task, view_tasks
+from features.weather import get_weather_text
 from features.wikipedia_search import search_wikipedia
 
 
@@ -263,7 +266,23 @@ def process_command(cmd: str) -> str:
     if cmd.startswith("wikipedia "):
         return search_wikipedia(cmd.replace("wikipedia ", "", 1))
 
-    return "Unknown command. Try: tell time, system info, wifi, bluetooth, wikipedia, or todo commands."
+    # ---- Information features ----
+    if cmd in {"news", "latest news", "headlines", "top news"}:
+        return get_news_text()
+
+    if cmd in {"weather", "weather report", "temperature", "forecast"}:
+        return get_weather_text()
+
+    if cmd.startswith("weather in "):
+        return get_weather_text(cmd.replace("weather in ", "", 1).strip())
+
+    if cmd in {"stock", "stock market", "stocks", "share market", "share price", "market"}:
+        return get_stock_text()
+
+    if cmd in {"crypto", "cryptocurrency", "bitcoin", "bitcoin price", "crypto price", "crypto update"}:
+        return get_crypto_text()
+
+    return "Unknown command. Try: tell time, system info, wifi, bluetooth, news, weather, stock, crypto, wikipedia, or todo commands."
 
 
 def main() -> None:

@@ -5,15 +5,15 @@
 | Category | Completed | Total | Progress |
 |----------|-----------|-------|----------|
 | Core Features | 7 | 7 | 100% ✅ |
-| Information | 1 | 5 | 20% |
+| Information | 3 | 5 | 60% |
 | Browser Automation | 0 | 8 | 0% |
 | Productivity | 0 | 5 | 0% |
-| Entertainment | 0 | 4 | 0% |
+| Entertainment | 1 | 4 | 25% |
 | System Control | 0 | 5 | 0% |
 | Advanced Features | 0 | 13 | 0% |
-| Integration APIs | 0 | 6 | 0% |
+| Integration APIs | 3 | 6 | 50% |
 | Machine Learning | 0 | 4 | 0% |
-| **TOTAL** | **8** | **63** | **12.7%** |
+| **TOTAL** | **12** | **63** | **19.0%** |
 
 ---
 
@@ -108,9 +108,9 @@
 
 ## 📋 Features to be Added
 
-### Information & Search (1/5)
+### Information & Search (3/5)
 - ☑ **Wikipedia Search** - Search and read Wikipedia summaries
-- ☐ **Weather Report** - Get temperature, humidity, wind speed, current location
+- ☑ **Weather Report** - Get temperature, humidity, wind speed (wttr.in, no API key)
 - ☑ **Tell Time** - Announce current time on demand
 - ☑ **System Info** - CPU usage, battery percentage, RAM status
 - ☐ **Dictionary/Spell Check** - Word definitions with auto-correct suggestions
@@ -139,10 +139,10 @@
 - ☐ **Take Notes** - Voice-to-text note saving
 - ☐ **Task Scheduler** - Schedule commands for specific times
 
-### Entertainment & Fun (0/4)
+### Entertainment & Fun (1/4)
 - ☐ **Tell Jokes** - Random joke generator
 - ☐ **Play Music** - Play audio files from directory
-- ☐ **News Headlines** - Fetch and speak latest news (API integration)
+- ☑ **News Headlines** - Fetch and speak latest news (Google News RSS, no API key)
 - ☐ **Trivia Questions** - Random trivia with answers
 
 ### System Control (0/5)
@@ -167,13 +167,13 @@
 - ☐ **Emotion Detection** - Detect emotion from voice tone
 - ☐ **Emergency Alert** - SOS/Emergency contact feature
 
-### Integration & APIs (0/6) - Using Web Scraping (No Keys Required)
-- ☐ **News Headlines** - Scrape BBC/CNN/news websites (no API key)
-- ☐ **Weather Data** - Scrape Open-Meteo or Weather.gov (free, no key)
+### Integration & APIs (3/6) - Using Web Scraping (No Keys Required)
+- ☑ **News Headlines** - Google News RSS (no API key)
+- ☑ **Weather Data** - wttr.in JSON API (free, no key)
 - ☐ **Google Maps Alternative** - Scrape location info from Google Maps
 - ☐ **Email Integration** - Local SMTP or scrape webmail
-- ☐ **Stock Market Data** - Scrape Yahoo Finance or stock websites
-- ☐ **Cryptocurrency Data** - Scrape CoinGecko (free API, no key)
+- ☑ **Stock Market Data** - Yahoo Finance unofficial API (no key)
+- ☑ **Cryptocurrency Data** - CoinGecko free API (no key)
 
 ### Machine Learning (0/4)
 - ☐ **Voice Recognition Improvement** - Train custom voice model
@@ -187,7 +187,7 @@
 
 ### Phase 1: High Impact (Must Have)
 1. ☑ **Wikipedia Search** - Easy, widely useful
-2. ☐ **Weather Report** - Real-world utility
+2. ☑ **Weather Report** - Real-world utility
 3. ☑ **Tell Time** - Simple, essential
 4. ☑ **Todo List** - Productivity booster
 5. ☐ **Open Any Website** - Browser automation foundation
@@ -199,7 +199,7 @@
 9. ☐ **Email Sending** - Communication
 10. ☐ **Tell Jokes** - Entertainment
 11. ☑ **System Info** - Diagnostics
-12. ☐ **News Headlines** - Information
+12. ☑ **News Headlines** - Information
 13. ☐ **Browser Control** - Tab management
 
 ### Phase 3: Low Impact (Nice to Have)
