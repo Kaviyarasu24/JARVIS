@@ -114,11 +114,7 @@
 - ☑ **Tell Time** - Announce current time on demand
 - ☑ **System Info** - CPU usage, battery percentage, RAM status
 
-### Web & Media (0/5) - Web Scraping Based
-- ☐ **YouTube Search** - Scrape YouTube search results (no API key)
-- ☐ **Google Search** - Scrape Google search results with BeautifulSoup
-- ☐ **Google Maps** - Scrape location data from Google Maps
-- ☐ **Open Websites** - Open Chrome with specific URLs
+
 
 ### Browser Automation (0/8)
 - ☐ **Open Any Website** - Open any URL in browser by voice command
