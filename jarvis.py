@@ -1,6 +1,8 @@
 import datetime
 import os
+import queue
 import subprocess
+import threading
 
 import cv2
 import speech_recognition as sr
@@ -42,24 +44,43 @@ def _tts_safe(text: str) -> str:
     return ascii_text.replace("'", "''")
 
 
-def speak(text: str) -> None:
-    """Use PowerShell's native System.Speech for reliable Windows text-to-speech."""
-    print(text)
-    safe = _tts_safe(text)
-    try:
-        ps_cmd = f'''
+# ─── Speech Queue ─────────────────────────────────────────────────────────────
+_speech_queue: queue.Queue = queue.Queue()
+
+
+def _speech_worker() -> None:
+    """Background thread: speaks items from the queue one at a time."""
+    while True:
+        text = _speech_queue.get()
+        if text is None:          # sentinel – shut down worker
+            break
+        safe = _tts_safe(text)
+        try:
+            ps_cmd = f'''
 Add-Type -AssemblyName System.Speech
 $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer
 $speak.Speak('{safe}')
 '''
-        subprocess.run(
-            ['powershell', '-NoProfile', '-Command', ps_cmd],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=30
-        )
-    except Exception as exc:
-        print(f"Speech error: {exc}")
+            subprocess.run(
+                ['powershell', '-NoProfile', '-Command', ps_cmd],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=30
+            )
+        except Exception as exc:
+            print(f"Speech error: {exc}")
+        finally:
+            _speech_queue.task_done()
+
+
+_speech_thread = threading.Thread(target=_speech_worker, daemon=True, name="SpeechWorker")
+_speech_thread.start()
+
+
+def speak(text: str) -> None:
+    """Enqueue text for serial TTS – prevents simultaneous speech collisions."""
+    print(text)
+    _speech_queue.put(text)
 
 
 def greeting() -> None:

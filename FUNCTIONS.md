@@ -113,14 +113,12 @@
 - ☑ **Weather Report** - Get temperature, humidity, wind speed (wttr.in, no API key)
 - ☑ **Tell Time** - Announce current time on demand
 - ☑ **System Info** - CPU usage, battery percentage, RAM status
-- ☐ **Dictionary/Spell Check** - Word definitions with auto-correct suggestions
 
 ### Web & Media (0/5) - Web Scraping Based
 - ☐ **YouTube Search** - Scrape YouTube search results (no API key)
 - ☐ **Google Search** - Scrape Google search results with BeautifulSoup
 - ☐ **Google Maps** - Scrape location data from Google Maps
 - ☐ **Open Websites** - Open Chrome with specific URLs
-- ☐ **YouTube Download** - Use yt-dlp library (no API key needed)
 
 ### Browser Automation (0/8)
 - ☐ **Open Any Website** - Open any URL in browser by voice command
