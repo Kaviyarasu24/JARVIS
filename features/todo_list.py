@@ -47,18 +47,26 @@ def _all_tasks(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     return tasks
 
 
-def add_task(task_text: str) -> str:
+def _validate_date_key(date_key: str) -> str:
+    try:
+        parsed = datetime.datetime.strptime(date_key, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError("Invalid date format. Use YYYY-MM-DD.")
+    return parsed.strftime("%Y-%m-%d")
+
+
+def add_task(task_text: str, date_key: str | None = None) -> str:
     task = task_text.strip()
     if not task:
         return "Please provide a task to add."
 
     data = _load_data()
     now = datetime.datetime.now()
-    date_key = now.strftime("%Y-%m-%d")
+    target_date = now.strftime("%Y-%m-%d") if date_key is None else _validate_date_key(date_key)
     time_str = now.strftime("%H:%M")
 
-    if date_key not in data["tasks_by_date"]:
-        data["tasks_by_date"][date_key] = []
+    if target_date not in data["tasks_by_date"]:
+        data["tasks_by_date"][target_date] = []
 
     task_obj = {
         "id": _next_id(data),
@@ -66,10 +74,60 @@ def add_task(task_text: str) -> str:
         "added_time": time_str,
         "status": "pending",
     }
-    data["tasks_by_date"][date_key].append(task_obj)
+    data["tasks_by_date"][target_date].append(task_obj)
     _save_data(data)
     total = len(_all_tasks(data))
-    return f"Task added on {date_key} at {time_str}. You now have {total} task{'s' if total != 1 else ''} in total."
+    return f"Task added on {target_date} at {time_str}. You now have {total} task{'s' if total != 1 else ''} in total."
+
+
+def get_tasks_for_date(date_key: str) -> List[Dict[str, Any]]:
+    target_date = _validate_date_key(date_key)
+    data = _load_data()
+    tasks = data["tasks_by_date"].get(target_date, [])
+    return [dict(task) for task in tasks]
+
+
+def update_task(task_selector: str, new_task_text: str, new_date_key: str | None = None) -> str:
+    selector = task_selector.strip()
+    updated_text = new_task_text.strip()
+    if not selector:
+        return "Please provide a task number or exact task text to update."
+    if not updated_text:
+        return "Please provide updated task text."
+
+    data = _load_data()
+    if not _all_tasks(data):
+        return "Your todo list is empty."
+
+    target_date = None
+    if new_date_key is not None:
+        try:
+            target_date = _validate_date_key(new_date_key)
+        except ValueError as exc:
+            return str(exc)
+
+    for current_date, date_tasks in list(data["tasks_by_date"].items()):
+        for i, task in enumerate(date_tasks):
+            is_match = (selector.isdigit() and task["id"] == int(selector)) or \
+                       (not selector.isdigit() and task["task"].lower() == selector.lower())
+            if not is_match:
+                continue
+
+            destination_date = target_date if target_date is not None else current_date
+            task["task"] = updated_text
+
+            if destination_date == current_date:
+                data["tasks_by_date"][current_date][i] = task
+            else:
+                moved_task = date_tasks.pop(i)
+                if not date_tasks:
+                    del data["tasks_by_date"][current_date]
+                data["tasks_by_date"].setdefault(destination_date, []).append(moved_task)
+
+            _save_data(data)
+            return f"Updated task {task['id']} on {destination_date}: {task['task']}."
+
+    return "Task not found. Please provide the exact task text or number."
 
 
 def view_tasks() -> str:

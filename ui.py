@@ -11,6 +11,7 @@ import time
 import math
 import random
 import datetime
+import calendar
 import os
 import queue
 import subprocess
@@ -42,7 +43,7 @@ from features.system_info import (
 from features.news_headlines import get_news_text
 from features.stock_market import get_crypto_text, get_stock_text
 from features.tell_time import get_current_time_text
-from features.todo_list import add_task, remove_task, view_tasks
+from features.todo_list import add_task, remove_task, view_tasks, get_tasks_for_date, update_task
 from features.weather import get_weather_text
 from features.wikipedia_search import search_wikipedia
 
@@ -401,7 +402,8 @@ class JarvisOrb(tk.Canvas):
 
         self.angle = (self.angle + 1.1) % 360
         self.pulse += 1
-        self.after(33, self._animate)
+        frame_delay = 40 if self.active else 72
+        self.after(frame_delay, self._animate)
 
     def _oval(self, cx, cy, r, outline, width=1):
         self.create_oval(cx-r, cy-r, cx+r, cy+r,
@@ -524,8 +526,7 @@ class JarvisApp(ctk.CTk):
                                        text_color=TEXT_GREEN)
         self.status_lbl.pack(side="right", padx=28)
 
-        # ── HUD scanline ──────────────────────────────────────────────────
-        HUDBar(self, height=14).pack(fill="x", side="top")
+        # Top scanline removed to reduce render overhead and UI jitter.
 
         # ── Center area with orb ──────────────────────────────────────────
         center = ctk.CTkFrame(self, fg_color=BG)
@@ -577,9 +578,9 @@ class JarvisApp(ctk.CTk):
             border_width=1,
             border_color=BORDER,
             width=270,
-            height=240,
+            height=620,
         )
-        self.right_panel.pack(side="right", anchor="n", padx=(10, 20), pady=20, expand=False)
+        self.right_panel.pack(side="right", fill="y", padx=(10, 20), pady=20, expand=False)
         self.right_panel.pack_propagate(False)
 
         ctk.CTkLabel(self.right_panel,
@@ -653,6 +654,181 @@ class JarvisApp(ctk.CTk):
         )
         self.clear_btn.pack(padx=15, pady=(0, 15), fill="x")
 
+        # Todo calendar controls
+        self.todo_panel = ctk.CTkFrame(
+            self.right_panel,
+            fg_color=INPUT_BG,
+            corner_radius=10,
+            border_width=1,
+            border_color=BORDER,
+        )
+        self.todo_panel.pack(padx=15, pady=(0, 15), fill="both", expand=True)
+
+        ctk.CTkLabel(
+            self.todo_panel,
+            text="TASK CALENDAR",
+            font=ctk.CTkFont("Courier New", 11, "bold"),
+            text_color=RING_BRIGHT,
+        ).pack(pady=(8, 6))
+
+        today = datetime.date.today()
+        self.todo_selected_date = today
+        self.todo_visible_year = today.year
+        self.todo_visible_month = today.month
+        self._calendar_enabled = False
+        self.todo_task_var = tk.StringVar()
+        self._todo_task_rows = []
+
+        month_row = ctk.CTkFrame(self.todo_panel, fg_color="transparent")
+        month_row.pack(fill="x", padx=8, pady=(0, 2))
+
+        self.cal_prev_btn = ctk.CTkButton(
+            month_row,
+            text="<",
+            width=28,
+            height=24,
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
+            command=lambda: self._shift_calendar_month(-1),
+            state="disabled",
+        )
+        self.cal_prev_btn.pack(side="left")
+
+        self.cal_month_label = ctk.CTkLabel(
+            month_row,
+            text="",
+            font=ctk.CTkFont("Courier New", 10, "bold"),
+            text_color="#D7ECFF",
+        )
+        self.cal_month_label.pack(side="left", expand=True)
+
+        self.cal_next_btn = ctk.CTkButton(
+            month_row,
+            text=">",
+            width=28,
+            height=24,
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
+            command=lambda: self._shift_calendar_month(1),
+            state="disabled",
+        )
+        self.cal_next_btn.pack(side="right")
+
+        weekday_row = ctk.CTkFrame(self.todo_panel, fg_color="transparent")
+        weekday_row.pack(fill="x", padx=8)
+        for weekday in ["M", "T", "W", "T", "F", "S", "S"]:
+            ctk.CTkLabel(
+                weekday_row,
+                text=weekday,
+                width=26,
+                font=ctk.CTkFont("Courier New", 9, "bold"),
+                text_color="#7FA8D3",
+            ).pack(side="left", expand=True)
+
+        self.cal_grid = ctk.CTkFrame(self.todo_panel, fg_color="transparent")
+        self.cal_grid.pack(fill="x", padx=8, pady=(0, 4))
+
+        self.cal_day_buttons = []
+        self.cal_day_dates = []
+        for row in range(6):
+            for col in range(7):
+                btn = ctk.CTkButton(
+                    self.cal_grid,
+                    text="",
+                    width=26,
+                    height=22,
+                    corner_radius=6,
+                    font=ctk.CTkFont("Courier New", 9),
+                    fg_color="#0E2140",
+                    hover_color="#17406D",
+                    text_color="#A8C9EA",
+                    border_width=0,
+                    command=lambda idx=len(self.cal_day_buttons): self._on_calendar_day_click(idx),
+                    state="disabled",
+                )
+                btn.grid(row=row, column=col, padx=1, pady=1, sticky="nsew")
+                self.cal_day_buttons.append(btn)
+                self.cal_day_dates.append(today)
+
+        for idx in range(7):
+            self.cal_grid.grid_columnconfigure(idx, weight=1)
+
+        self.todo_task_entry = ctk.CTkEntry(
+            self.todo_panel,
+            textvariable=self.todo_task_var,
+            font=ctk.CTkFont("Courier New", 10),
+            fg_color=LOG_BG,
+            text_color="#D3E7FF",
+            border_color="#4FAEE6",
+            border_width=1,
+            corner_radius=6,
+            placeholder_text="Task details...",
+            state="disabled",
+        )
+        self.todo_task_entry.pack(fill="x", padx=8, pady=(8, 6))
+
+        actions_row = ctk.CTkFrame(self.todo_panel, fg_color="transparent")
+        actions_row.pack(fill="x", padx=8)
+
+        self.todo_add_btn = ctk.CTkButton(
+            actions_row,
+            text="ADD",
+            width=80,
+            height=28,
+            font=ctk.CTkFont("Courier New", 10, "bold"),
+            fg_color=BTN_PRIMARY,
+            hover_color=BTN_PRIMARY_HOVER,
+            command=self._on_add_task_from_calendar,
+            state="disabled",
+        )
+        self.todo_add_btn.pack(side="left", fill="x", expand=True, padx=(0, 4))
+
+        self.todo_update_btn = ctk.CTkButton(
+            actions_row,
+            text="UPDATE",
+            width=80,
+            height=28,
+            font=ctk.CTkFont("Courier New", 10, "bold"),
+            fg_color=BTN_WARN,
+            hover_color=BTN_WARN_HOVER,
+            command=self._on_update_selected_task,
+            state="disabled",
+        )
+        self.todo_update_btn.pack(side="left", fill="x", expand=True, padx=(4, 0))
+
+        list_wrap = ctk.CTkFrame(
+            self.todo_panel,
+            fg_color=LOG_BG,
+            corner_radius=8,
+            border_width=1,
+            border_color=BORDER,
+            height=110,
+        )
+        list_wrap.pack(fill="both", expand=True, padx=8, pady=(8, 8))
+        list_wrap.pack_propagate(False)
+
+        self.todo_listbox = tk.Listbox(
+            list_wrap,
+            height=8,
+            bg=LOG_BG,
+            fg="#BBD5F8",
+            selectbackground="#1E5C9A",
+            selectforeground="#EEF7FF",
+            borderwidth=0,
+            highlightthickness=0,
+            activestyle="none",
+            font=("Courier New", 9),
+            state="disabled",
+        )
+        self.todo_listbox.pack(side="left", fill="both", expand=True, padx=(6, 0), pady=6)
+        self.todo_listbox.bind("<<ListboxSelect>>", self._on_task_list_select)
+
+        self.todo_scroll = ctk.CTkScrollbar(list_wrap, command=self.todo_listbox.yview)
+        self.todo_scroll.pack(side="right", fill="y", padx=6, pady=6)
+        self.todo_listbox.configure(yscrollcommand=self.todo_scroll.set)
+
+        self._rebuild_calendar_grid()
+
         # ── Floating input — bottom right ─────────────────────────────────
         self.input_row = ctk.CTkFrame(self, fg_color="transparent")
         self.input_row.place(relx=1.0, rely=1.0, anchor="se", x=-20, y=-18)
@@ -721,12 +897,176 @@ class JarvisApp(ctk.CTk):
         )
 
         input_width = self._clamp(int(available_center * 0.70), 320, 640)
+        right_height = self._clamp(int(h - 130), 520, 760)
         self.left_panel.configure(width=left_width)
-        self.right_panel.configure(width=right_width, height=240)
+        self.right_panel.configure(width=right_width, height=right_height)
         self.entry.configure(width=input_width)
 
         if abs(self.orb.orb_size - target_orb) > 8:
             self.orb.resize_orb(target_orb)
+
+    def _get_selected_date_key(self) -> str:
+        return self.todo_selected_date.strftime("%Y-%m-%d")
+
+    def _shift_calendar_month(self, step: int):
+        month = self.todo_visible_month + step
+        year = self.todo_visible_year
+        while month < 1:
+            month += 12
+            year -= 1
+        while month > 12:
+            month -= 12
+            year += 1
+        self.todo_visible_year = year
+        self.todo_visible_month = month
+        self._rebuild_calendar_grid()
+
+    def _on_calendar_day_click(self, button_index: int):
+        if button_index < 0 or button_index >= len(self.cal_day_dates):
+            return
+        chosen_date = self.cal_day_dates[button_index]
+        self.todo_selected_date = chosen_date
+        self.todo_visible_year = chosen_date.year
+        self.todo_visible_month = chosen_date.month
+        self._rebuild_calendar_grid()
+
+    def _rebuild_calendar_grid(self):
+        self.cal_month_label.configure(
+            text=f"{calendar.month_name[self.todo_visible_month]} {self.todo_visible_year}"
+        )
+
+        calendar_builder = calendar.Calendar(firstweekday=0)
+        weeks = calendar_builder.monthdatescalendar(self.todo_visible_year, self.todo_visible_month)
+        while len(weeks) < 6:
+            last_week = weeks[-1]
+            next_week_start = last_week[-1] + datetime.timedelta(days=1)
+            weeks.append([next_week_start + datetime.timedelta(days=i) for i in range(7)])
+
+        flat_dates = [day for week in weeks[:6] for day in week]
+        self.cal_day_dates = flat_dates
+
+        for idx, day in enumerate(flat_dates):
+            btn = self.cal_day_buttons[idx]
+            is_current_month = day.month == self.todo_visible_month
+            is_selected = day == self.todo_selected_date
+            is_today = day == datetime.date.today()
+
+            fg_color = "#0E2140"
+            hover_color = "#17406D"
+            text_color = "#A8C9EA"
+            border_width = 0
+            border_color = BORDER
+
+            if not is_current_month:
+                fg_color = "#0A1630"
+                text_color = "#4F6C8E"
+            if is_today:
+                fg_color = "#153A62"
+                text_color = "#DDF0FF"
+            if is_selected:
+                fg_color = BTN_PRIMARY
+                hover_color = BTN_PRIMARY_HOVER
+                text_color = "#EEF7FF"
+                border_width = 1
+                border_color = "#6EC7FF"
+
+            btn.configure(
+                text=str(day.day),
+                fg_color=fg_color,
+                hover_color=hover_color,
+                text_color=text_color,
+                border_width=border_width,
+                border_color=border_color,
+                state="normal" if self._calendar_enabled else "disabled",
+            )
+
+        self._refresh_task_list()
+
+    def _refresh_task_list(self):
+        date_key = self._get_selected_date_key()
+        self._todo_task_rows = get_tasks_for_date(date_key)
+
+        self.todo_listbox.configure(state="normal")
+        self.todo_listbox.delete(0, "end")
+
+        if not self._todo_task_rows:
+            self.todo_listbox.insert("end", "No tasks for selected date.")
+            self.todo_listbox.configure(state="disabled")
+            return
+
+        for task in self._todo_task_rows:
+            status = "DONE" if task.get("status") == "completed" else "PENDING"
+            self.todo_listbox.insert(
+                "end",
+                f"{task['id']}. [{status}] {task['task']} ({task['added_time']})",
+            )
+        if not self.authenticated:
+            self.todo_listbox.configure(state="disabled")
+
+    def _set_calendar_enabled(self, enabled: bool):
+        self._calendar_enabled = enabled
+        state = "normal" if enabled else "disabled"
+        self.cal_prev_btn.configure(state=state)
+        self.cal_next_btn.configure(state=state)
+        for btn in self.cal_day_buttons:
+            btn.configure(state=state)
+        self.todo_task_entry.configure(state=state)
+        self.todo_add_btn.configure(state=state)
+        self.todo_update_btn.configure(state=state)
+        self.todo_listbox.configure(state=state)
+        self._rebuild_calendar_grid()
+
+    def _on_task_list_select(self, _event=None):
+        if not self.authenticated:
+            return
+        selected = self.todo_listbox.curselection()
+        if not selected:
+            return
+        idx = selected[0]
+        if idx >= len(self._todo_task_rows):
+            return
+        self.todo_task_var.set(self._todo_task_rows[idx].get("task", ""))
+
+    def _selected_task_id(self):
+        selected = self.todo_listbox.curselection()
+        if not selected:
+            return None
+        idx = selected[0]
+        if idx >= len(self._todo_task_rows):
+            return None
+        return self._todo_task_rows[idx].get("id")
+
+    def _on_add_task_from_calendar(self):
+        if not self.authenticated:
+            self._add_to_transcript("SYSTEM: Please authenticate first")
+            return
+
+        task_text = self.todo_task_var.get().strip()
+        date_key = self._get_selected_date_key()
+        response = add_task(task_text, date_key)
+        self._add_to_transcript(f"JARVIS: {response}")
+        speak(response)
+
+        if task_text:
+            self.todo_task_var.set("")
+        self._refresh_task_list()
+
+    def _on_update_selected_task(self):
+        if not self.authenticated:
+            self._add_to_transcript("SYSTEM: Please authenticate first")
+            return
+
+        task_id = self._selected_task_id()
+        if task_id is None:
+            self._add_to_transcript("JARVIS: Select a task from the calendar list to update.")
+            return
+
+        new_text = self.todo_task_var.get().strip()
+        date_key = self._get_selected_date_key()
+        response = update_task(str(task_id), new_text, date_key)
+        self._add_to_transcript(f"JARVIS: {response}")
+        speak(response)
+        self._refresh_task_list()
 
     def _on_send(self, event=None):
         if not self.authenticated:
@@ -874,6 +1214,8 @@ class JarvisApp(ctk.CTk):
                 self.clear_btn.configure(state="normal"),
                 self.entry.configure(state="normal"),
                 self.send_btn.configure(state="normal"),
+                self._set_calendar_enabled(True),
+                self._refresh_task_list(),
                 self.entry.focus()
             ))
             msg = greeting()
@@ -890,6 +1232,7 @@ class JarvisApp(ctk.CTk):
                 self.clear_btn.configure(state="disabled"),
                 self.entry.configure(state="disabled"),
                 self.send_btn.configure(state="disabled"),
+                self._set_calendar_enabled(False),
                 self.status_lbl.configure(text="● LOCKED", text_color=STATUS_RED)
             ))
 
