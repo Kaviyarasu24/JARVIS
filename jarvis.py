@@ -32,7 +32,7 @@ from features.network_status import (
 from features.news_headlines import get_news_text
 from features.stock_market import get_crypto_text, get_stock_text
 from features.tell_time import get_current_time_text
-from features.todo_list import add_task, remove_task, view_tasks
+from features.todo_list import add_task, complete_task, remove_task, view_tasks
 from features.weather import get_weather_text
 from features.wikipedia_search import search_wikipedia
 
@@ -65,7 +65,6 @@ $speak.Speak('{safe}')
                 ['powershell', '-NoProfile', '-Command', ps_cmd],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                timeout=30
             )
         except Exception as exc:
             print(f"Speech error: {exc}")
@@ -243,6 +242,12 @@ def process_command(cmd: str) -> str:
 
     if cmd.startswith("remove task "):
         return remove_task(cmd.replace("remove task ", "", 1))
+
+    if cmd.startswith("complete task "):
+        return complete_task(cmd.replace("complete task ", "", 1))
+
+    if cmd.startswith("done task "):
+        return complete_task(cmd.replace("done task ", "", 1))
 
     # ---- Network features ----
     if cmd in {"wifi", "wifi status", "wi-fi", "wi-fi status", "wireless"}:

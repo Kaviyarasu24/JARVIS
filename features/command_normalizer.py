@@ -24,7 +24,7 @@ def _is_normalized_command(text: str) -> bool:
         "crypto", "cryptocurrency", "bitcoin",
     }:
         return True
-    return bool(re.match(r"^(calculate|open|add task|remove task|ping|search wikipedia|wikipedia|weather in)\s+.+$", value))
+        return bool(re.match(r"^(calculate|open|add task|remove task|complete task|done task|ping|search wikipedia|wikipedia|weather in)\s+.+$", value))
 
 
 def _cleanup_response(text: str) -> str:
@@ -144,11 +144,18 @@ def _fallback_normalize(user_input: str) -> str:
                 return f"add task {task}"
     
     # Remove task commands - need explicit trigger
-    for trigger in ("remove task", "delete task", "complete task", "done task", "finish task"):
+    for trigger in ("remove task", "delete task"):
         if trigger in text:
             task = text.split(trigger, 1)[1].strip()
             if task:
                 return f"remove task {task}"
+
+    # Complete task commands
+    for trigger in ("complete task", "done task", "finish task", "mark task"):
+        if trigger in text:
+            task = text.split(trigger, 1)[1].strip()
+            if task:
+                return f"complete task {task}"
     
     # View/list task commands - if mentions tasks without add/remove action
     has_task_word = "task" in text or "todo" in text

@@ -1,6 +1,6 @@
 """
 JARVIS - Just A Rather Very Intelligent System
-Real-feel cinematic HUD color scheme
+Colorful cinematic HUD theme
 Install: pip install customtkinter
 """
 
@@ -47,28 +47,42 @@ from features.weather import get_weather_text
 from features.wikipedia_search import search_wikipedia
 
 ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
+ctk.set_default_color_theme("dark-blue")
 
-# ─── CINEMATIC JARVIS PALETTE ─────────────────────────────────────────────────
-BG           = "#000810"       # near-black deep space
-PANEL        = "#000C1A"       # panel bg
-RING_BRIGHT  = "#4DC8FF"       # main bright ring blue
-RING_MID     = "#1A7AAF"       # mid blue arcs
-RING_DIM     = "#0A3A55"       # dim ring / borders
-RING_GLOW    = "#00AAFF"       # glow accent
-ARC_CYAN     = "#00E5FF"       # fast-spin cyan arc
-ARC_AMBER    = "#FF9500"       # amber accent (like Iron Man HUD)
-ARC_GOLD     = "#FFD060"       # gold highlight ticks
-TEXT_WHITE   = "#E8F4FF"       # center label
-TEXT_SUB     = "#5AAFCC"       # subtitle / dim text
-TEXT_GREEN   = "#00FF88"       # online / status green
-TEXT_AMBER   = "#FFA030"       # amber status
-STATUS_RED   = "#FF3B3B"       # alert red
-TICK_MAJOR   = "#2A8EBB"       # major tick marks
-TICK_MINOR   = "#0D3A50"       # minor tick marks
-SCAN_LINE    = "#1A6A9A"       # hud scan line
-INNER_FILL   = "#000D1F"       # inner orb fill
-BORDER       = "#0D3550"       # frame borders
+# ─── CINEMATIC JARVIS PALETTE (SINGLE BLUE FAMILY) ──────────────────────────
+BG           = "#070B1A"       # deep night blue
+PANEL        = "#101A36"       # elevated panel base
+PANEL_SOFT   = "#162248"       # panel accents
+RING_BRIGHT  = "#37E7FF"       # electric cyan
+RING_MID     = "#2A9FD6"       # mid cyan blue
+RING_DIM     = "#1D4F75"       # dim ring / borders
+RING_GLOW    = "#00C2FF"       # glow accent
+ARC_CYAN     = "#4AF7FF"       # fast-spin cyan arc
+ARC_AMBER    = "#2B7CC2"       # unified accent blue
+ARC_GOLD     = "#5CB5F0"       # unified highlight blue
+TEXT_WHITE   = "#EEF5FF"       # center label
+TEXT_SUB     = "#8DB6E8"       # subtitle / dim text
+TEXT_GREEN   = "#71D7FF"       # online / status cyan
+TEXT_AMBER   = "#64BFFF"       # active/listening blue
+STATUS_RED   = "#4C93D6"       # auth/alert blue tone
+TICK_MAJOR   = "#5AB9E6"       # major tick marks
+TICK_MINOR   = "#204D72"       # minor tick marks
+SCAN_LINE    = "#2D79AD"       # hud scan line
+INNER_FILL   = "#0D1735"       # inner orb fill
+BORDER       = "#2A5E8A"       # frame borders
+
+BTN_PRIMARY  = "#1E5C9A"
+BTN_PRIMARY_HOVER = "#2772BC"
+BTN_SECONDARY = "#16577A"
+BTN_SECONDARY_HOVER = "#1F6E98"
+BTN_WARN = "#1B5D93"
+BTN_WARN_HOVER = "#2675B4"
+BTN_DANGER = "#164F80"
+BTN_DANGER_HOVER = "#1F699F"
+BTN_DANGER_BORDER = "#4A9AD8"
+INPUT_BG = "#0C1633"
+LOG_BG = "#0A1630"
+ORB_SCALE = 0.60
 
 
 # ─── JARVIS Core Functions ────────────────────────────────────────────────────
@@ -100,7 +114,6 @@ $speak.Speak('{safe}')
                 ['powershell', '-NoProfile', '-Command', ps_cmd],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                timeout=30
             )
         except Exception as exc:
             print(f"Speech error: {exc}")
@@ -243,7 +256,7 @@ class JarvisOrb(tk.Canvas):
     def __init__(self, master, size=520, **kwargs):
         self.orb_size = size
         super().__init__(master, width=size, height=size,
-                         bg="#000810", highlightthickness=0, **kwargs)
+                 bg=BG, highlightthickness=0, **kwargs)
         self.size = size
         self.cx   = size / 2
         self.cy   = size / 2
@@ -261,7 +274,7 @@ class JarvisOrb(tk.Canvas):
         for i in range(12, 0, -1):
             r  = R * 0.55 * i / 12
             lv = int(12 * i / 12)
-            c  = f"#{0:02x}{lv:02x}{lv*2+4:02x}"
+            c  = f"#{2:02x}{lv+3:02x}{lv*2+8:02x}"
             self.create_oval(cx-r, cy-r, cx+r, cy+r, fill=c, outline="")
 
         # ── Ring 1 — outermost hairline ───────────────────────────────────
@@ -357,7 +370,7 @@ class JarvisOrb(tk.Canvas):
             self.create_text(cx+dx*2, cy+dy*2 - int(fs*0.3),
                              text="JARVIS",
                              font=("Courier New", fs, "bold"),
-                             fill="#003860")
+                             fill="#0A4A72")
 
         # main text
         self.create_text(cx, cy - int(fs*0.3),
@@ -410,6 +423,13 @@ class JarvisOrb(tk.Canvas):
     def set_active(self, state: bool):
         self.active = state
 
+    def resize_orb(self, size: int):
+        self.orb_size = size
+        self.size = size
+        self.cx = size / 2
+        self.cy = size / 2
+        self.configure(width=size, height=size)
+
 
 # ─── HUD Scanline bar ─────────────────────────────────────────────────────────
 class HUDBar(tk.Canvas):
@@ -450,28 +470,40 @@ class JarvisApp(ctk.CTk):
         self.title("Jarvis  //  Developed by Kavi  //  Version 1")
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
-        self.geometry(f"{sw}x{sh}+0+0")
+        width = int(sw * 0.94)
+        height = int(sh * 0.92)
+        self.geometry(f"{width}x{height}+0+0")
+        self._min_width = 1180
+        self._min_height = 700
+        self.minsize(self._min_width, self._min_height)
         self.resizable(True, True)
         self.configure(fg_color=BG)
         self.authenticated = False
         self.battery_state = BatteryNotificationState()
         self.network_state = NetworkNotificationState()
+        self._resize_job = None
         self._build_ui()
         self._start_clock()
         self._check_battery_notifications()
         self._check_network_notifications()
+        self.bind("<Configure>", self._on_window_resize)
+        self.after(150, self._apply_responsive_layout)
         # Start authentication in background
         threading.Thread(target=self._authenticate, daemon=True).start()
 
+    @staticmethod
+    def _clamp(value: int, low: int, high: int) -> int:
+        return max(low, min(value, high))
+
     def _build_ui(self):
         # ── Header ────────────────────────────────────────────────────────
-        header = ctk.CTkFrame(self, fg_color=PANEL, corner_radius=0, height=52)
+        header = ctk.CTkFrame(self, fg_color=PANEL, corner_radius=0, height=56)
         header.pack(fill="x", side="top")
         header.pack_propagate(False)
 
         # Left: logo
         ctk.CTkLabel(header,
-                     text="◈  Jarvis",
+                     text="◈  JARVIS",
                      font=ctk.CTkFont("Courier New", 20, "bold"),
                      text_color=RING_BRIGHT).pack(side="left", padx=22, pady=10)
 
@@ -500,58 +532,73 @@ class JarvisApp(ctk.CTk):
         center.pack(fill="both", expand=True)
 
         # Left side: Transcript
-        left_panel = ctk.CTkFrame(center, fg_color=PANEL, corner_radius=8, width=380)
-        left_panel.pack(side="left", fill="both", padx=(20, 10), pady=20, expand=False)
-        left_panel.pack_propagate(False)
+        self.left_panel = ctk.CTkFrame(
+            center,
+            fg_color=PANEL,
+            corner_radius=14,
+            border_width=1,
+            border_color=BORDER,
+            width=390,
+        )
+        self.left_panel.pack(side="left", fill="both", padx=(20, 10), pady=20, expand=False)
+        self.left_panel.pack_propagate(False)
 
-        ctk.CTkLabel(left_panel,
+        ctk.CTkLabel(self.left_panel,
                      text="◈ COMMAND LINE",
                      font=ctk.CTkFont("Courier New", 14, "bold"),
                      text_color=RING_BRIGHT).pack(pady=(15, 10))
 
         # Transcript text area
         self.transcript = ctk.CTkTextbox(
-            left_panel,
+            self.left_panel,
             font=ctk.CTkFont("Courier New", 11),
-            fg_color="#000D1F",
-            text_color=TEXT_SUB,
-            border_color=RING_DIM,
+            fg_color=LOG_BG,
+            text_color="#BBD5F8",
+            border_color=BORDER,
             border_width=1,
-            corner_radius=4,
+            corner_radius=8,
             wrap="word"
         )
         self.transcript.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         self.transcript.configure(state="disabled")
 
         # Center: Orb
-        orb_frame = ctk.CTkFrame(center, fg_color=BG)
-        orb_frame.pack(side="left", fill="both", expand=True)
+        self.orb_frame = ctk.CTkFrame(center, fg_color=BG)
+        self.orb_frame.pack(side="left", fill="both", expand=True)
 
-        self.orb = JarvisOrb(orb_frame, size=486)
+        self.orb = JarvisOrb(self.orb_frame, size=int(486 * ORB_SCALE))
         self.orb.place(relx=0.5, rely=0.5, anchor="center")
 
         # Right side: Controls
-        right_panel = ctk.CTkFrame(center, fg_color=PANEL, corner_radius=8, width=280)
-        right_panel.pack(side="right", fill="both", padx=(10, 20), pady=20, expand=False)
-        right_panel.pack_propagate(False)
+        self.right_panel = ctk.CTkFrame(
+            center,
+            fg_color=PANEL_SOFT,
+            corner_radius=14,
+            border_width=1,
+            border_color=BORDER,
+            width=270,
+            height=240,
+        )
+        self.right_panel.pack(side="right", anchor="n", padx=(10, 20), pady=20, expand=False)
+        self.right_panel.pack_propagate(False)
 
-        ctk.CTkLabel(right_panel,
+        ctk.CTkLabel(self.right_panel,
                      text="◈ CONTROLS",
                      font=ctk.CTkFont("Courier New", 14, "bold"),
                      text_color=RING_BRIGHT).pack(pady=(15, 10))
 
         # Voice command button
         self.voice_btn = ctk.CTkButton(
-            right_panel,
+            self.right_panel,
             text="🎤 VOICE COMMAND",
             font=ctk.CTkFont("Courier New", 12, "bold"),
-            fg_color="#003A60",
-            hover_color=RING_MID,
-            text_color=RING_BRIGHT,
+            fg_color=BTN_PRIMARY,
+            hover_color=BTN_PRIMARY_HOVER,
+            text_color="#EAF6FF",
             border_width=2,
-            border_color=RING_MID,
-            corner_radius=6,
-            height=38,
+            border_color="#4AB4F2",
+            corner_radius=8,
+            height=40,
             command=self._on_voice,
             state="disabled"
         )
@@ -559,15 +606,15 @@ class JarvisApp(ctk.CTk):
 
         # Greeting button
         self.greeting_btn = ctk.CTkButton(
-            right_panel,
+            self.right_panel,
             text="👋 GREETING",
             font=ctk.CTkFont("Courier New", 11, "bold"),
-            fg_color="#003A60",
-            hover_color=RING_MID,
-            text_color=RING_BRIGHT,
+            fg_color=BTN_SECONDARY,
+            hover_color=BTN_SECONDARY_HOVER,
+            text_color="#EAF6FF",
             border_width=1,
-            border_color=RING_DIM,
-            corner_radius=4,
+            border_color="#4AAEE0",
+            corner_radius=8,
             height=32,
             command=self._on_greeting,
             state="disabled"
@@ -576,99 +623,110 @@ class JarvisApp(ctk.CTk):
 
         # Face auth button
         ctk.CTkButton(
-            right_panel,
+            self.right_panel,
             text="🔐 RE-AUTHENTICATE",
             font=ctk.CTkFont("Courier New", 11, "bold"),
-            fg_color="#003A60",
-            hover_color=RING_MID,
-            text_color=RING_BRIGHT,
+            fg_color=BTN_WARN,
+            hover_color=BTN_WARN_HOVER,
+            text_color="#FFF7EE",
             border_width=1,
-            border_color=RING_DIM,
-            corner_radius=4,
+            border_color="#F6B066",
+            corner_radius=8,
             height=32,
             command=lambda: threading.Thread(target=self._authenticate, daemon=True).start()
         ).pack(padx=15, pady=(0, 8), fill="x")
 
         # Clear transcript button
         self.clear_btn = ctk.CTkButton(
-            right_panel,
+            self.right_panel,
             text="🗑️ CLEAR LOG",
             font=ctk.CTkFont("Courier New", 11, "bold"),
-            fg_color="#003A60",
-            hover_color=RING_MID,
-            text_color=RING_BRIGHT,
+            fg_color=BTN_DANGER,
+            hover_color=BTN_DANGER_HOVER,
+            text_color="#EAF6FF",
             border_width=1,
-            border_color=RING_DIM,
-            corner_radius=4,
+            border_color=BTN_DANGER_BORDER,
+            corner_radius=8,
             height=32,
             command=self._clear_transcript,
             state="disabled"
         )
-        self.clear_btn.pack(padx=15, pady=(0, 8), fill="x")
-
-        # Info label
-        info_text = (
-            "Commands:\n"
-            "• 'open [app]' - Open Windows apps\n"
-            "• 'tell time' - Current time\n"
-            "• 'system info' - CPU/RAM/Battery\n"
-            "• 'calculate 25 plus 5' - Calculator\n"
-            "• 'add task ...' / 'view tasks' / 'remove task ...'\n"
-            "• 'hello' / 'hi' - Greeting\n"
-            "• 'exit' / 'quit' - Stop listening\n\n"
-            "Supported apps:\n"
-            "notepad, calculator, paint,\n"
-            "cmd, powershell, explorer,\n"
-            "settings"
-        )
-        ctk.CTkLabel(
-            right_panel,
-            text=info_text,
-            font=ctk.CTkFont("Courier New", 9),
-            text_color=TEXT_SUB,
-            justify="left",
-            anchor="w",
-            wraplength=245
-        ).pack(padx=15, pady=(20, 15), fill="x")
+        self.clear_btn.pack(padx=15, pady=(0, 15), fill="x")
 
         # ── Floating input — bottom right ─────────────────────────────────
-        row = ctk.CTkFrame(self, fg_color="transparent")
-        row.place(relx=1.0, rely=1.0, anchor="se", x=-20, y=-18)
+        self.input_row = ctk.CTkFrame(self, fg_color="transparent")
+        self.input_row.place(relx=1.0, rely=1.0, anchor="se", x=-20, y=-18)
 
-        ctk.CTkLabel(row, text="▶",
+        ctk.CTkLabel(self.input_row, text="▶",
                      font=ctk.CTkFont("Courier New", 15),
                      text_color=ARC_AMBER).pack(side="left", padx=(0, 6))
 
         self.input_var = tk.StringVar()
         self.entry = ctk.CTkEntry(
-            row, textvariable=self.input_var,
+            self.input_row, textvariable=self.input_var,
             font=ctk.CTkFont("Courier New", 13),
-            fg_color="#000F22",
-            text_color=ARC_CYAN,
-            border_color=RING_MID,
+            fg_color=INPUT_BG,
+            text_color="#D3E7FF",
+            border_color="#4FAEE6",
             border_width=1,
-            corner_radius=4,
+            corner_radius=8,
             width=420,
             placeholder_text="Enter directive...",
-            placeholder_text_color="#1A4A6A",
+            placeholder_text_color="#6C90B8",
             state="disabled"
         )
         self.entry.pack(side="left", padx=(0, 10))
         self.entry.bind("<Return>", self._on_send)
 
-        self.send_btn = ctk.CTkButton(row,
+        self.send_btn = ctk.CTkButton(self.input_row,
                       text="SEND",
                       font=ctk.CTkFont("Courier New", 12, "bold"),
-                      fg_color="#003A60",
-                      hover_color=RING_MID,
-                      text_color=RING_BRIGHT,
+                      fg_color=BTN_PRIMARY,
+                      hover_color=BTN_PRIMARY_HOVER,
+                      text_color="#EEF7FF",
                       border_width=1,
-                      border_color=RING_MID,
-                      corner_radius=4,
+                      border_color="#4AB4F2",
+                      corner_radius=8,
                       width=80,
                       command=self._on_send,
                       state="disabled")
         self.send_btn.pack(side="left")
+
+    def _on_window_resize(self, event=None):
+        if self._resize_job is not None:
+            self.after_cancel(self._resize_job)
+        self._resize_job = self.after(120, self._apply_responsive_layout)
+
+    def _apply_responsive_layout(self):
+        self._resize_job = None
+        w = max(self.winfo_width(), self._min_width)
+        h = max(self.winfo_height(), self._min_height)
+
+        # Keep the orb centered while making the right panel intentionally slimmer.
+        side_width = self._clamp(int(w * 0.24), 280, 430)
+        left_width = side_width
+        right_width = self._clamp(int(side_width * 0.82), 220, 350)
+
+        available_center = w - (left_width + right_width) - 140
+        if available_center < 340:
+            side_width = self._clamp(int((w - 500) / 2), 240, 400)
+            left_width = side_width
+            right_width = self._clamp(int(side_width * 0.82), 210, 330)
+            available_center = w - (left_width + right_width) - 140
+
+        target_orb = self._clamp(
+            int(min(int(h * 0.68), int(available_center * 0.95)) * ORB_SCALE),
+            204,
+            336,
+        )
+
+        input_width = self._clamp(int(available_center * 0.70), 320, 640)
+        self.left_panel.configure(width=left_width)
+        self.right_panel.configure(width=right_width, height=240)
+        self.entry.configure(width=input_width)
+
+        if abs(self.orb.orb_size - target_orb) > 8:
+            self.orb.resize_orb(target_orb)
 
     def _on_send(self, event=None):
         if not self.authenticated:

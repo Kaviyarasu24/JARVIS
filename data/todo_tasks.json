@@ -1,7 +1,24 @@
 {
-  "tasks": [
-    "buy laptop tomorrow",
-    "buy mobile phone tomorrow",
-    "meet my mom next week"
-  ]
+  "tasks_by_date": {
+    "2026-03-15": [
+      {
+        "id": 1,
+        "task": "buy laptop tomorrow",
+        "added_time": "14:05",
+        "status": "completed"
+      },
+      {
+        "id": 2,
+        "task": "buy mobile phone tomorrow",
+        "added_time": "14:06",
+        "status": "pending"
+      },
+      {
+        "id": 3,
+        "task": "meet my mom next week",
+        "added_time": "14:06",
+        "status": "pending"
+      }
+    ]
+  }
 }
