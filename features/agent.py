@@ -301,6 +301,30 @@ def _keyword_dispatch(text: str) -> str | None:
     if any(w in t for w in ("view notes", "show notes", "my notes", "read notes", "what notes")):
         return execute("view_notes", {})
 
+    # Reminders and scheduling
+    m = re.match(r"remind me to\s+(.+?)\s+in\s+(\d+)\s*(minutes?|hours?|days?)$", t)
+    if m:
+        return execute("set_reminder", {"message": m.group(1), "when": f"in {m.group(2)} {m.group(3)}"})
+
+    m = re.match(r"set reminder\s+(.+?)\s+at\s+(.+)$", t)
+    if m:
+        return execute("set_reminder", {"message": m.group(1), "when": m.group(2)})
+
+    if any(w in t for w in ("list reminders", "show reminders", "my reminders", "pending reminders")):
+        return execute("list_reminders", {})
+
+    m = re.match(r"cancel reminder\s+(\d+)$", t)
+    if m:
+        return execute("cancel_reminder", {"reminder_id": int(m.group(1))})
+
+    m = re.match(r"schedule task\s+(.+?)\s+in\s+(\d+)\s*(minutes?|hours?|days?)$", t)
+    if m:
+        return execute("schedule_task", {"task": m.group(1), "when": f"in {m.group(2)} {m.group(3)}"})
+
+    m = re.match(r"schedule task\s+(.+?)\s+at\s+(.+)$", t)
+    if m:
+        return execute("schedule_task", {"task": m.group(1), "when": m.group(2)})
+
     # Greetings — let LLM handle these naturally via "respond"
     if any(w in t for w in ("hello", "hi jarvis", "hey jarvis")):
         return None
@@ -346,6 +370,25 @@ def run(user_input: str) -> str:
     raw_input = user_input.strip()
     if not raw_input:
         return ""
+
+    # Deterministic fast-path for reminder/scheduling intents.
+    # Tiny models can ignore JSON tool-call format, so route these directly.
+    lowered = raw_input.lower()
+    reminder_intent_markers = (
+        "remind me",
+        "set reminder",
+        "list reminders",
+        "show reminders",
+        "my reminders",
+        "cancel reminder",
+        "schedule task",
+    )
+    if any(marker in lowered for marker in reminder_intent_markers):
+        direct = _keyword_dispatch(raw_input)
+        if direct:
+            memory.append("user", raw_input)
+            memory.append("assistant", direct)
+            return direct
 
     system = _build_system_prompt()
 

@@ -16,6 +16,7 @@ from features.network_status import (
     NetworkNotificationState,
     check_network_notifications,
 )
+from features.reminders import pop_due_notifications
 
 
 def _tts_safe(text: str) -> str:
@@ -184,6 +185,9 @@ def main() -> None:
         net_message = check_network_notifications(network_state)
         if net_message:
             speak(net_message)
+
+        for reminder_message in pop_due_notifications(limit=3):
+            speak(reminder_message)
 
         user_input = take_voice_command().strip()
 

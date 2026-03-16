@@ -43,6 +43,7 @@ from features.system_control import (
 )
 from features.entertainment import get_trivia, play_music, tell_joke
 from features.notes import delete_note, take_note, view_notes
+from features.reminders import cancel_reminder, list_reminders, schedule_task, set_reminder
 
 
 # ── Registry ──────────────────────────────────────────────────────────────────
@@ -290,6 +291,34 @@ TOOLS: dict[str, dict] = {
         "description": "Delete a saved note by its ID",
         "parameters": {"note_id": "int - note ID to delete"},
         "fn": lambda note_id: delete_note(int(note_id)),
+    },
+
+    # ── Reminders and Scheduling ─────────────────────────────────────────────
+    "set_reminder": {
+        "description": "Set a reminder message at a future time",
+        "parameters": {
+            "message": "str - reminder message",
+            "when": "str - time like 'in 10 minutes', 'tomorrow 09:30', or '2026-03-20 18:30'",
+        },
+        "fn": lambda message, when: set_reminder(message, when),
+    },
+    "list_reminders": {
+        "description": "List pending reminders and scheduled tasks",
+        "parameters": {},
+        "fn": lambda: list_reminders(),
+    },
+    "cancel_reminder": {
+        "description": "Cancel a pending reminder or scheduled task by ID",
+        "parameters": {"reminder_id": "int - reminder/scheduled task ID"},
+        "fn": lambda reminder_id: cancel_reminder(int(reminder_id)),
+    },
+    "schedule_task": {
+        "description": "Schedule a todo task to be auto-added at a future time",
+        "parameters": {
+            "task": "str - task text to add later",
+            "when": "str - time like 'in 2 hours' or '2026-03-20 18:30'",
+        },
+        "fn": lambda task, when: schedule_task(task, when),
     },
 }
 

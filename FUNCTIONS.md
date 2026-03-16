@@ -23,7 +23,7 @@ This tracker is aligned to the new architecture:
 
 ## 2) Tool Coverage Summary
 
-Total registered tools: **42**
+Total registered tools: **46**
 
 | Category | Implemented Tools |
 |---|---:|
@@ -43,7 +43,8 @@ Total registered tools: **42**
 | Display | 2 |
 | Entertainment | 3 |
 | Notes | 3 |
-| **Total** | **42** |
+| Reminders/Scheduling | 4 |
+| **Total** | **46** |
 
 ---
 
@@ -123,6 +124,12 @@ Total registered tools: **42**
 - [x] `view_notes`
 - [x] `delete_note`
 
+### Reminders and Scheduling
+- [x] `set_reminder`
+- [x] `list_reminders`
+- [x] `cancel_reminder`
+- [x] `schedule_task`
+
 ---
 
 ## 4) Next Planned Tool Additions
@@ -134,7 +141,7 @@ Total registered tools: **42**
 - [ ] browser tab control (back/forward/refresh/close)
 
 ### Productivity
-- [ ] scheduler/reminders (time-based)
+- [x] scheduler/reminders (time-based)
 - [ ] email sending via SMTP
 - [ ] calendar events integration
 

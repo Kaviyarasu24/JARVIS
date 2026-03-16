@@ -27,6 +27,7 @@ from features.system_info import (
     BatteryNotificationState,
     check_battery_notifications,
 )
+from features.reminders import pop_due_notifications
 # UI-specific task/calendar helpers (still used by the task panel widgets)
 from features.todo_list import add_task, remove_task, view_tasks, get_tasks_for_date, update_task
 
@@ -442,6 +443,7 @@ class JarvisApp(ctk.CTk):
         self._start_clock()
         self._check_battery_notifications()
         self._check_network_notifications()
+        self._check_due_reminders()
         self.bind("<Configure>", self._on_window_resize)
         self.after(150, self._apply_responsive_layout)
         # Start authentication in background
@@ -1176,6 +1178,15 @@ class JarvisApp(ctk.CTk):
 
         # Poll every 3 seconds — fast enough for instant feel, light on resources.
         self.after(3000, self._check_network_notifications)
+
+    def _check_due_reminders(self):
+        if self.authenticated:
+            for reminder_message in pop_due_notifications(limit=3):
+                self._add_to_transcript(f"JARVIS: {reminder_message}")
+                self._speak_battery_notification(reminder_message)
+
+        # Poll every 2 seconds to keep reminder alerts timely.
+        self.after(2000, self._check_due_reminders)
 
 
 # ─── Entry ────────────────────────────────────────────────────────────────────
