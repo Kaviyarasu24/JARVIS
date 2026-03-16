@@ -38,6 +38,12 @@
         "task": "smoke test via natural language",
         "added_time": "13:51",
         "status": "pending"
+      },
+      {
+        "id": 7,
+        "task": "send report",
+        "added_time": "22:36",
+        "status": "pending"
       }
     ]
   }

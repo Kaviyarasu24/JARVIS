@@ -25,9 +25,9 @@
       "type": "reminder",
       "message": "stretch",
       "run_at": "2026-03-16T18:52",
-      "status": "pending",
+      "status": "completed",
       "created_at": "2026-03-16T18:42:36",
-      "fired_at": null
+      "fired_at": "2026-03-16T22:36:54"
     },
     {
       "id": 4,
@@ -35,9 +35,9 @@
       "task": "send report",
       "message": "Scheduled task: send report",
       "run_at": "2026-03-16T19:02",
-      "status": "pending",
+      "status": "completed",
       "created_at": "2026-03-16T18:42:36",
-      "fired_at": null
+      "fired_at": "2026-03-16T22:36:54"
     }
   ]
 }

@@ -15,6 +15,7 @@ import calendar
 import os
 import queue
 import subprocess
+from typing import Optional
 import cv2
 import speech_recognition as sr
 
@@ -80,10 +81,14 @@ def _tts_safe(text: str) -> str:
 
 # ─── Speech Queue ─────────────────────────────────────────────────────────────
 _speech_queue: queue.Queue = queue.Queue()
+_speech_lock = threading.Lock()
+_current_speech_process: Optional[subprocess.Popen] = None
+_listening_mode = threading.Event()
 
 
 def _speech_worker() -> None:
     """Background thread: speaks items from the queue one at a time."""
+    global _current_speech_process
     while True:
         text = _speech_queue.get()
         if text is None:          # sentinel – shut down worker
@@ -95,14 +100,19 @@ Add-Type -AssemblyName System.Speech
 $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer
 $speak.Speak('{safe}')
 '''
-            subprocess.run(
+            proc = subprocess.Popen(
                 ['powershell', '-NoProfile', '-Command', ps_cmd],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+            with _speech_lock:
+                _current_speech_process = proc
+            proc.wait()
         except Exception as exc:
             print(f"Speech error: {exc}")
         finally:
+            with _speech_lock:
+                _current_speech_process = None
             _speech_queue.task_done()
 
 
@@ -113,7 +123,41 @@ _speech_thread.start()
 def speak(text: str) -> None:
     """Enqueue text for serial TTS – prevents simultaneous speech collisions."""
     print(text)
+    if _listening_mode.is_set():
+        return
     _speech_queue.put(text)
+
+
+def set_listening_mode(active: bool) -> None:
+    if active:
+        _listening_mode.set()
+    else:
+        _listening_mode.clear()
+
+
+def stop_speaking() -> None:
+    """Stop current speech immediately and clear any pending queued speech."""
+    global _current_speech_process
+
+    with _speech_lock:
+        proc = _current_speech_process
+
+    if proc is not None and proc.poll() is None:
+        try:
+            proc.terminate()
+            proc.wait(timeout=0.2)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+
+    while True:
+        try:
+            _speech_queue.get_nowait()
+            _speech_queue.task_done()
+        except queue.Empty:
+            break
 
 
 def greeting() -> str:
@@ -578,6 +622,22 @@ class JarvisApp(ctk.CTk):
         )
         self.greeting_btn.pack(padx=15, pady=(0, 8), fill="x")
 
+        self.stop_speaking_btn = ctk.CTkButton(
+            self.right_panel,
+            text="🔇 STOP SPEAKING",
+            font=ctk.CTkFont("Courier New", 11, "bold"),
+            fg_color=BTN_WARN,
+            hover_color=BTN_WARN_HOVER,
+            text_color="#FFF7EE",
+            border_width=1,
+            border_color="#F6B066",
+            corner_radius=8,
+            height=32,
+            command=self._on_stop_speaking,
+            state="disabled"
+        )
+        self.stop_speaking_btn.pack(padx=15, pady=(0, 8), fill="x")
+
         # Face auth button
         ctk.CTkButton(
             self.right_panel,
@@ -1041,10 +1101,20 @@ class JarvisApp(ctk.CTk):
         if not self.authenticated:
             self._add_to_transcript("SYSTEM: Please authenticate first")
             return
+
+        # Prevent overlap: clicking Voice always cancels ongoing/pending TTS first.
+        set_listening_mode(True)
+        stop_speaking()
         self.voice_btn.configure(state="disabled", text="🎤 LISTENING...")
         self.orb.set_active(True)
         self.status_lbl.configure(text="● LISTENING", text_color=TEXT_AMBER)
         threading.Thread(target=self._voice_command, daemon=True).start()
+
+    def _on_stop_speaking(self):
+        stop_speaking()
+        self._add_to_transcript("SYSTEM: Speech stopped")
+        self.orb.set_active(False)
+        self.status_lbl.configure(text="● ONLINE", text_color=TEXT_GREEN)
 
     def _on_greeting(self):
         if not self.authenticated:
@@ -1064,7 +1134,10 @@ class JarvisApp(ctk.CTk):
         ))
 
     def _voice_command(self):
-        cmd = take_voice_command().strip().lower()
+        try:
+            cmd = take_voice_command().strip().lower()
+        finally:
+            set_listening_mode(False)
         self.after(0, lambda: self.voice_btn.configure(state="normal", text="🎤 VOICE COMMAND"))
         if cmd:
             self._add_to_transcript(f"YOU: {cmd}")
@@ -1101,6 +1174,7 @@ class JarvisApp(ctk.CTk):
             self.after(0, lambda: (
                 self.voice_btn.configure(state="normal"),
                 self.greeting_btn.configure(state="normal"),
+                self.stop_speaking_btn.configure(state="normal"),
                 self.clear_btn.configure(state="normal"),
                 self.entry.configure(state="normal"),
                 self.send_btn.configure(state="normal"),
@@ -1119,6 +1193,7 @@ class JarvisApp(ctk.CTk):
             self.after(0, lambda: (
                 self.voice_btn.configure(state="disabled"),
                 self.greeting_btn.configure(state="disabled"),
+                self.stop_speaking_btn.configure(state="disabled"),
                 self.clear_btn.configure(state="disabled"),
                 self.entry.configure(state="disabled"),
                 self.send_btn.configure(state="disabled"),
