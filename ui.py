@@ -18,34 +18,17 @@ import subprocess
 import cv2
 import speech_recognition as sr
 
-from features.calculator import calculate_text
-from features.command_normalizer import normalize_command
+from features import agent
 from features.network_status import (
-    get_active_connections_text,
-    get_bluetooth_status_text,
-    get_ip_address_text,
-    get_network_interfaces_text,
-    get_network_usage_text,
-    get_ping_text,
-    get_public_ip_text,
-    get_wifi_status_text,
-    toggle_bluetooth,
-    toggle_wifi,
     NetworkNotificationState,
     check_network_notifications,
 )
 from features.system_info import (
     BatteryNotificationState,
     check_battery_notifications,
-    get_battery_status_text,
-    get_system_info_text,
 )
-from features.news_headlines import get_news_text
-from features.stock_market import get_crypto_text, get_stock_text
-from features.tell_time import get_current_time_text
+# UI-specific task/calendar helpers (still used by the task panel widgets)
 from features.todo_list import add_task, remove_task, view_tasks, get_tasks_for_date, update_task
-from features.weather import get_weather_text
-from features.wikipedia_search import search_wikipedia
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
@@ -219,37 +202,8 @@ def authenticate_face() -> bool:
     return False
 
 
-def open_windows_app(app_name: str) -> str:
-    app_map = {
-        "notepad": "notepad.exe",
-        "calculator": "calc.exe",
-        "calc": "calc.exe",
-        "paint": "mspaint.exe",
-        "cmd": "cmd.exe",
-        "command prompt": "cmd.exe",
-        "powershell": "powershell.exe",
-        "explorer": "explorer.exe",
-        "file explorer": "explorer.exe",
-        "settings": "ms-settings:",
-    }
+# open_windows_app moved to features/system_control.py as open_app
 
-    key = app_name.strip().lower()
-    target = app_map.get(key)
-    if not target:
-        msg = "I only support a few built-in Windows apps right now."
-        print("Supported apps:", ", ".join(sorted(app_map.keys())))
-        return msg
-
-    try:
-        if target.endswith(":"):
-            os.startfile(target)
-        else:
-            subprocess.Popen([target], shell=False)
-        return f"Opening {key}."
-    except Exception as exc:
-        msg = f"I could not open {key}."
-        print(f"Error: {exc}")
-        return msg
 
 
 # ─── Jarvis Orb ───────────────────────────────────────────────────────────────
@@ -1120,74 +1074,8 @@ class JarvisApp(ctk.CTk):
             ))
 
     def _process(self, text):
-        cmd = normalize_command(text).strip().lower()
-        response = ""
-
-        if cmd in {"exit", "quit", "sleep"}:
-            response = "Goodbye."
-        elif cmd in {"hello", "hi", "hey"}:
-            response = greeting()
-        elif cmd.startswith("open "):
-            app_name = cmd.replace("open ", "", 1)
-            response = open_windows_app(app_name)
-        elif cmd in {"tell time", "what time is it", "time"}:
-            response = get_current_time_text()
-        elif cmd in {"system info", "system information", "pc status"}:
-            response = get_system_info_text()
-        elif cmd in {"battery", "battery status"}:
-            response = get_battery_status_text()
-        elif cmd.startswith("calculate "):
-            response = calculate_text(cmd.replace("calculate ", "", 1))
-        elif cmd.startswith("what is "):
-            response = calculate_text(cmd.replace("what is ", "", 1))
-        elif cmd.startswith("add task "):
-            response = add_task(cmd.replace("add task ", "", 1))
-        elif cmd in {"show tasks", "view tasks", "list tasks", "todo list"}:
-            response = view_tasks()
-        elif cmd.startswith("remove task "):
-            response = remove_task(cmd.replace("remove task ", "", 1))
-        # ---- Network features ----
-        elif cmd in {"wifi", "wifi status", "wi-fi", "wi-fi status", "wireless"}:
-            response = get_wifi_status_text()
-        elif cmd in {"turn on wifi", "enable wifi", "wifi on"}:
-            response = toggle_wifi(True)
-        elif cmd in {"turn off wifi", "disable wifi", "wifi off"}:
-            response = toggle_wifi(False)
-        elif cmd in {"bluetooth", "bluetooth status", "bt status"}:
-            response = get_bluetooth_status_text()
-        elif cmd in {"turn on bluetooth", "enable bluetooth", "bluetooth on"}:
-            response = toggle_bluetooth(True)
-        elif cmd in {"turn off bluetooth", "disable bluetooth", "bluetooth off"}:
-            response = toggle_bluetooth(False)
-        elif cmd in {"ip address", "my ip", "local ip", "ip"}:
-            response = get_ip_address_text()
-        elif cmd in {"public ip", "external ip", "my public ip", "wan ip"}:
-            response = get_public_ip_text()
-        elif cmd in {"network interfaces", "network adapters", "interfaces"}:
-            response = get_network_interfaces_text()
-        elif cmd in {"network usage", "data usage", "bandwidth usage", "network stats"}:
-            response = get_network_usage_text()
-        elif cmd in {"active connections", "connections", "network connections"}:
-            response = get_active_connections_text()
-        elif cmd.startswith("ping "):
-            response = get_ping_text(cmd.replace("ping ", "", 1))
-        elif cmd.startswith("search wikipedia "):
-            response = search_wikipedia(cmd.replace("search wikipedia ", "", 1))
-        elif cmd.startswith("wikipedia "):
-            response = search_wikipedia(cmd.replace("wikipedia ", "", 1))
-        # ---- Information features ----
-        elif cmd in {"news", "latest news", "headlines", "top news"}:
-            response = get_news_text()
-        elif cmd in {"weather", "weather report", "temperature", "forecast"}:
-            response = get_weather_text()
-        elif cmd.startswith("weather in "):
-            response = get_weather_text(cmd.replace("weather in ", "", 1).strip())
-        elif cmd in {"stock", "stock market", "stocks", "share market", "share price", "market"}:
-            response = get_stock_text()
-        elif cmd in {"crypto", "cryptocurrency", "bitcoin", "bitcoin price", "crypto price", "crypto update"}:
-            response = get_crypto_text()
-        else:
-            response = "Unknown command. Try: tell time, system info, wifi, bluetooth, news, weather, stock, crypto, wikipedia, or todo commands."
+        """Route text input through the goal-based agent."""
+        response = agent.run(text.strip())
 
         self._add_to_transcript(f"JARVIS: {response}")
         speak(response)

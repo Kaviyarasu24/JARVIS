@@ -4,7 +4,6 @@ from __future__ import annotations
 import re
 import socket
 import subprocess
-import urllib.request
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -319,25 +318,6 @@ def get_ip_address_text() -> str:
             return f"Your local IP address is {local_ip}."
         except Exception as exc:
             return f"Could not determine local IP address: {exc}"
-
-
-def get_public_ip_text() -> str:
-    """Return the public (WAN) IP address by querying an external service."""
-    services = [
-        "https://api.ipify.org",
-        "https://icanhazip.com",
-        "https://ifconfig.me/ip",
-    ]
-    for url in services:
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "JARVIS/1.0"})
-            with urllib.request.urlopen(req, timeout=5) as resp:  # noqa: S310
-                public_ip = resp.read().decode().strip()
-                if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", public_ip):
-                    return f"Your public IP address is {public_ip}."
-        except Exception:
-            continue
-    return "Could not retrieve public IP. Check your internet connection."
 
 
 # ---------------------------------------------------------------------------
