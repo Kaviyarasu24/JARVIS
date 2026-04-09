@@ -1,0 +1,64 @@
+/* ─── Particle Sphere Container ──────────────────────────────────────────── */
+.particle-container {
+  width: 420px;
+  height: 420px;
+  position: relative;
+  margin-top: 20px;
+}
+
+.particle-container canvas {
+  display: block;
+}
+
+/* Subtle glow behind the sphere */
+.particle-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(68, 136, 255, 0.08) 0%,
+    rgba(68, 136, 255, 0.02) 50%,
+    transparent 70%
+  );
+  pointer-events: none;
+  transition: opacity 0.8s ease, width 0.8s ease, height 0.8s ease;
+}
+
+/* Rich, deep blue glow matching the reference image */
+.particle-glow.image-matched {
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(
+    circle,
+    rgba(40, 80, 255, 0.2) 0%,
+    rgba(20, 40, 150, 0.1) 40%,
+    transparent 70%
+  );
+}
+
+.particle-glow.image-matched.active {
+  width: 440px;
+  height: 440px;
+  background: radial-gradient(
+    circle,
+    rgba(60, 120, 255, 0.25) 0%,
+    rgba(30, 60, 200, 0.12) 45%,
+    transparent 75%
+  );
+}
+
+.particle-glow.active {
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(
+    circle,
+    rgba(68, 200, 255, 0.12) 0%,
+    rgba(68, 136, 255, 0.04) 50%,
+    transparent 70%
+  );
+}
