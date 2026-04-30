@@ -7,16 +7,9 @@ Install: pip install customtkinter
 import customtkinter as ctk
 import tkinter as tk
 import threading
-import time
 import math
-import random
 import datetime
 import calendar
-import os
-import queue
-import subprocess
-from typing import Optional
-import cv2
 import speech_recognition as sr
 
 from features import agent
@@ -30,136 +23,14 @@ from features.system_info import (
 )
 from features.reminders import pop_due_notifications
 # UI-specific task/calendar helpers (still used by the task panel widgets)
-from features.todo_list import add_task, remove_task, view_tasks, get_tasks_for_date, update_task
-
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("dark-blue")
+from features.todo_list import add_task, get_tasks_for_date, update_task
+from ui_components.auth import authenticate_face
+from ui_components.speech import set_listening_mode, speak, stop_speaking
+from ui_components.theme import *
 
 # ─── CINEMATIC JARVIS PALETTE (SINGLE BLUE FAMILY) ──────────────────────────
-BG           = "#070B1A"       # deep night blue
-PANEL        = "#101A36"       # elevated panel base
-PANEL_SOFT   = "#162248"       # panel accents
-RING_BRIGHT  = "#37E7FF"       # electric cyan
-RING_MID     = "#2A9FD6"       # mid cyan blue
-RING_DIM     = "#1D4F75"       # dim ring / borders
-RING_GLOW    = "#00C2FF"       # glow accent
-ARC_CYAN     = "#4AF7FF"       # fast-spin cyan arc
-ARC_AMBER    = "#2B7CC2"       # unified accent blue
-ARC_GOLD     = "#5CB5F0"       # unified highlight blue
-TEXT_WHITE   = "#EEF5FF"       # center label
-TEXT_SUB     = "#8DB6E8"       # subtitle / dim text
-TEXT_GREEN   = "#71D7FF"       # online / status cyan
-TEXT_AMBER   = "#64BFFF"       # active/listening blue
-STATUS_RED   = "#4C93D6"       # auth/alert blue tone
-TICK_MAJOR   = "#5AB9E6"       # major tick marks
-TICK_MINOR   = "#204D72"       # minor tick marks
-SCAN_LINE    = "#2D79AD"       # hud scan line
-INNER_FILL   = "#0D1735"       # inner orb fill
-BORDER       = "#2A5E8A"       # frame borders
-
-BTN_PRIMARY  = "#1E5C9A"
-BTN_PRIMARY_HOVER = "#2772BC"
-BTN_SECONDARY = "#16577A"
-BTN_SECONDARY_HOVER = "#1F6E98"
-BTN_WARN = "#1B5D93"
-BTN_WARN_HOVER = "#2675B4"
-BTN_DANGER = "#164F80"
-BTN_DANGER_HOVER = "#1F699F"
-BTN_DANGER_BORDER = "#4A9AD8"
-INPUT_BG = "#0C1633"
-LOG_BG = "#0A1630"
-ORB_SCALE = 0.60
-
-
 # ─── JARVIS Core Functions ────────────────────────────────────────────────────
-def _tts_safe(text: str) -> str:
-    """Transliterate to ASCII and escape single quotes for PowerShell."""
-    import unicodedata
-    ascii_text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
-    return ascii_text.replace("'", "''")
-
-
 # ─── Speech Queue ─────────────────────────────────────────────────────────────
-_speech_queue: queue.Queue = queue.Queue()
-_speech_lock = threading.Lock()
-_current_speech_process: Optional[subprocess.Popen] = None
-_listening_mode = threading.Event()
-
-
-def _speech_worker() -> None:
-    """Background thread: speaks items from the queue one at a time."""
-    global _current_speech_process
-    while True:
-        text = _speech_queue.get()
-        if text is None:          # sentinel – shut down worker
-            break
-        safe = _tts_safe(text)
-        try:
-            ps_cmd = f'''
-Add-Type -AssemblyName System.Speech
-$speak = New-Object System.Speech.Synthesis.SpeechSynthesizer
-$speak.Speak('{safe}')
-'''
-            proc = subprocess.Popen(
-                ['powershell', '-NoProfile', '-Command', ps_cmd],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            with _speech_lock:
-                _current_speech_process = proc
-            proc.wait()
-        except Exception as exc:
-            print(f"Speech error: {exc}")
-        finally:
-            with _speech_lock:
-                _current_speech_process = None
-            _speech_queue.task_done()
-
-
-_speech_thread = threading.Thread(target=_speech_worker, daemon=True, name="SpeechWorker")
-_speech_thread.start()
-
-
-def speak(text: str) -> None:
-    """Enqueue text for serial TTS – prevents simultaneous speech collisions."""
-    print(text)
-    if _listening_mode.is_set():
-        return
-    _speech_queue.put(text)
-
-
-def set_listening_mode(active: bool) -> None:
-    if active:
-        _listening_mode.set()
-    else:
-        _listening_mode.clear()
-
-
-def stop_speaking() -> None:
-    """Stop current speech immediately and clear any pending queued speech."""
-    global _current_speech_process
-
-    with _speech_lock:
-        proc = _current_speech_process
-
-    if proc is not None and proc.poll() is None:
-        try:
-            proc.terminate()
-            proc.wait(timeout=0.2)
-        except Exception:
-            try:
-                proc.kill()
-            except Exception:
-                pass
-
-    while True:
-        try:
-            _speech_queue.get_nowait()
-            _speech_queue.task_done()
-        except queue.Empty:
-            break
-
-
 def greeting() -> str:
     hour = int(datetime.datetime.now().hour)
     if 0 <= hour < 12:
@@ -188,63 +59,6 @@ def take_voice_command() -> str:
     except Exception:
         print("Could not understand. Please speak again.")
         return ""
-
-
-def authenticate_face() -> bool:
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    trainer_path = os.path.join(base_dir, "Face-Recognition", "trainer", "trainer.yml")
-    local_cascade = os.path.join(base_dir, "Face-Recognition", "haarcascade_frontalface_default.xml")
-    cascade_path = local_cascade if os.path.exists(local_cascade) else os.path.join(
-        cv2.data.haarcascades, "haarcascade_frontalface_default.xml"
-    )
-
-    if not os.path.exists(trainer_path):
-        print("Trainer model not found. Run Face-Recognition/Model Trainer.py first.")
-        return False
-
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
-    recognizer.read(trainer_path)
-
-    face_cascade = cv2.CascadeClassifier(cascade_path)
-    if face_cascade.empty():
-        print("Failed to load face cascade classifier.")
-        return False
-
-    cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-    if not cam.isOpened():
-        print("Could not access webcam.")
-        return False
-
-    speak("Starting face recognition ")
-    matched_frames = 0
-    max_frames = 120
-    frame_count = 0
-
-    while frame_count < max_frames:
-        ret, img = cam.read()
-        if not ret:
-            frame_count += 1
-            continue
-
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5)
-
-        for (x, y, w, h) in faces:
-            _, confidence = recognizer.predict(gray[y:y + h, x:x + w])
-            if confidence < 70:
-                matched_frames += 1
-            if matched_frames >= 3:
-                cam.release()
-                cv2.destroyAllWindows()
-                speak("Face Recognition Done. Welcome back sir.")
-                return True
-
-        frame_count += 1
-
-    cam.release()
-    cv2.destroyAllWindows()
-    speak("Face recognition failed. Access denied.")
-    return False
 
 
 # open_windows_app moved to features/system_control.py as open_app
@@ -505,7 +319,7 @@ class JarvisApp(ctk.CTk):
 
         # Left: logo
         ctk.CTkLabel(header,
-                     text="◈  JARVIS",
+                     text=f"{ICON_LOGO}  JARVIS",
                      font=ctk.CTkFont("Courier New", 20, "bold"),
                      text_color=RING_BRIGHT).pack(side="left", padx=22, pady=10)
 
@@ -521,7 +335,7 @@ class JarvisApp(ctk.CTk):
         self.clock_lbl.pack(side="right", padx=22)
 
         self.status_lbl = ctk.CTkLabel(header,
-                                       text="● ONLINE",
+                                       text=TEXT_ONLINE,
                                        font=ctk.CTkFont("Courier New", 12, "bold"),
                                        text_color=TEXT_GREEN)
         self.status_lbl.pack(side="right", padx=28)
@@ -545,7 +359,7 @@ class JarvisApp(ctk.CTk):
         self.left_panel.pack_propagate(False)
 
         ctk.CTkLabel(self.left_panel,
-                     text="◈ COMMAND LINE",
+                     text=f"{ICON_SECTION} COMMAND LINE",
                      font=ctk.CTkFont("Courier New", 14, "bold"),
                      text_color=RING_BRIGHT).pack(pady=(15, 10))
 
@@ -584,14 +398,14 @@ class JarvisApp(ctk.CTk):
         self.right_panel.pack_propagate(False)
 
         ctk.CTkLabel(self.right_panel,
-                     text="◈ CONTROLS",
+                     text=f"{ICON_SECTION} CONTROLS",
                      font=ctk.CTkFont("Courier New", 14, "bold"),
                      text_color=RING_BRIGHT).pack(pady=(15, 10))
 
         # Voice command button
         self.voice_btn = ctk.CTkButton(
             self.right_panel,
-            text="🎤 VOICE COMMAND",
+            text=LABEL_VOICE,
             font=ctk.CTkFont("Courier New", 12, "bold"),
             fg_color=BTN_PRIMARY,
             hover_color=BTN_PRIMARY_HOVER,
@@ -608,7 +422,7 @@ class JarvisApp(ctk.CTk):
         # Greeting button
         self.greeting_btn = ctk.CTkButton(
             self.right_panel,
-            text="👋 GREETING",
+            text=LABEL_GREETING,
             font=ctk.CTkFont("Courier New", 11, "bold"),
             fg_color=BTN_SECONDARY,
             hover_color=BTN_SECONDARY_HOVER,
@@ -624,7 +438,7 @@ class JarvisApp(ctk.CTk):
 
         self.stop_speaking_btn = ctk.CTkButton(
             self.right_panel,
-            text="🔇 STOP SPEAKING",
+            text=LABEL_STOP_SPEAKING,
             font=ctk.CTkFont("Courier New", 11, "bold"),
             fg_color=BTN_WARN,
             hover_color=BTN_WARN_HOVER,
@@ -641,7 +455,7 @@ class JarvisApp(ctk.CTk):
         # Face auth button
         ctk.CTkButton(
             self.right_panel,
-            text="🔐 RE-AUTHENTICATE",
+            text=LABEL_REAUTH,
             font=ctk.CTkFont("Courier New", 11, "bold"),
             fg_color=BTN_WARN,
             hover_color=BTN_WARN_HOVER,
@@ -656,7 +470,7 @@ class JarvisApp(ctk.CTk):
         # Clear transcript button
         self.clear_btn = ctk.CTkButton(
             self.right_panel,
-            text="🗑️ CLEAR LOG",
+            text=LABEL_CLEAR_LOG,
             font=ctk.CTkFont("Courier New", 11, "bold"),
             fg_color=BTN_DANGER,
             hover_color=BTN_DANGER_HOVER,
@@ -849,7 +663,7 @@ class JarvisApp(ctk.CTk):
         self.input_row = ctk.CTkFrame(self, fg_color="transparent")
         self.input_row.place(relx=1.0, rely=1.0, anchor="se", x=-20, y=-18)
 
-        ctk.CTkLabel(self.input_row, text="▶",
+        ctk.CTkLabel(self.input_row, text=ICON_INPUT,
                      font=ctk.CTkFont("Courier New", 15),
                      text_color=ARC_AMBER).pack(side="left", padx=(0, 6))
 
@@ -1094,7 +908,7 @@ class JarvisApp(ctk.CTk):
         self.input_var.set("")
         self._add_to_transcript(f"YOU: {text}")
         self.orb.set_active(True)
-        self.status_lbl.configure(text="● PROCESSING", text_color=TEXT_AMBER)
+        self.status_lbl.configure(text=TEXT_PROCESSING, text_color=TEXT_AMBER)
         threading.Thread(target=self._process, args=(text,), daemon=True).start()
 
     def _on_voice(self):
@@ -1105,23 +919,23 @@ class JarvisApp(ctk.CTk):
         # Prevent overlap: clicking Voice always cancels ongoing/pending TTS first.
         set_listening_mode(True)
         stop_speaking()
-        self.voice_btn.configure(state="disabled", text="🎤 LISTENING...")
+        self.voice_btn.configure(state="disabled", text=LABEL_LISTENING)
         self.orb.set_active(True)
-        self.status_lbl.configure(text="● LISTENING", text_color=TEXT_AMBER)
+        self.status_lbl.configure(text=TEXT_LISTENING, text_color=TEXT_AMBER)
         threading.Thread(target=self._voice_command, daemon=True).start()
 
     def _on_stop_speaking(self):
         stop_speaking()
         self._add_to_transcript("SYSTEM: Speech stopped")
         self.orb.set_active(False)
-        self.status_lbl.configure(text="● ONLINE", text_color=TEXT_GREEN)
+        self.status_lbl.configure(text=TEXT_ONLINE, text_color=TEXT_GREEN)
 
     def _on_greeting(self):
         if not self.authenticated:
             self._add_to_transcript("SYSTEM: Please authenticate first")
             return
         self.orb.set_active(True)
-        self.status_lbl.configure(text="● SPEAKING", text_color=TEXT_AMBER)
+        self.status_lbl.configure(text=TEXT_SPEAKING, text_color=TEXT_AMBER)
         threading.Thread(target=self._greeting_thread, daemon=True).start()
 
     def _greeting_thread(self):
@@ -1130,7 +944,7 @@ class JarvisApp(ctk.CTk):
         speak(msg)
         self.after(0, lambda: (
             self.orb.set_active(False),
-            self.status_lbl.configure(text="● ONLINE", text_color=TEXT_GREEN)
+            self.status_lbl.configure(text=TEXT_ONLINE, text_color=TEXT_GREEN)
         ))
 
     def _voice_command(self):
@@ -1138,14 +952,14 @@ class JarvisApp(ctk.CTk):
             cmd = take_voice_command().strip().lower()
         finally:
             set_listening_mode(False)
-        self.after(0, lambda: self.voice_btn.configure(state="normal", text="🎤 VOICE COMMAND"))
+        self.after(0, lambda: self.voice_btn.configure(state="normal", text=LABEL_VOICE))
         if cmd:
             self._add_to_transcript(f"YOU: {cmd}")
             self._process(cmd)
         else:
             self.after(0, lambda: (
                 self.orb.set_active(False),
-                self.status_lbl.configure(text="● ONLINE", text_color=TEXT_GREEN)
+                self.status_lbl.configure(text=TEXT_ONLINE, text_color=TEXT_GREEN)
             ))
 
     def _process(self, text):
@@ -1157,15 +971,15 @@ class JarvisApp(ctk.CTk):
         
         self.after(0, lambda: (
             self.orb.set_active(False),
-            self.status_lbl.configure(text="● ONLINE", text_color=TEXT_GREEN)
+            self.status_lbl.configure(text=TEXT_ONLINE, text_color=TEXT_GREEN)
         ))
 
     def _authenticate(self):
         self._add_to_transcript("SYSTEM: Starting face authentication...")
         self.after(0, lambda: self.status_lbl.configure(
-            text="● AUTHENTICATING", text_color=STATUS_RED))
+            text=TEXT_AUTHENTICATING, text_color=STATUS_RED))
         
-        result = authenticate_face()
+        result = authenticate_face(speak)
         self.authenticated = result
         
         if result:
@@ -1186,7 +1000,7 @@ class JarvisApp(ctk.CTk):
             self._add_to_transcript(f"JARVIS: {msg}")
             speak(msg)
             self.after(0, lambda: self.status_lbl.configure(
-                text="● ONLINE", text_color=TEXT_GREEN))
+                text=TEXT_ONLINE, text_color=TEXT_GREEN))
         else:
             self._add_to_transcript("SYSTEM: Authentication failed. Try again.")
             # Keep controls disabled
@@ -1198,7 +1012,7 @@ class JarvisApp(ctk.CTk):
                 self.entry.configure(state="disabled"),
                 self.send_btn.configure(state="disabled"),
                 self._set_calendar_enabled(False),
-                self.status_lbl.configure(text="● LOCKED", text_color=STATUS_RED)
+                self.status_lbl.configure(text=TEXT_LOCKED, text_color=STATUS_RED)
             ))
 
     def _add_to_transcript(self, text):
@@ -1223,13 +1037,13 @@ class JarvisApp(ctk.CTk):
     def _speak_battery_notification(self, message):
         # Keep TTS off the UI thread so center animation can continue rendering.
         self.orb.set_active(True)
-        self.status_lbl.configure(text="● SPEAKING", text_color=TEXT_AMBER)
+        self.status_lbl.configure(text=TEXT_SPEAKING, text_color=TEXT_AMBER)
 
         def worker():
             speak(message)
             self.after(0, lambda: (
                 self.orb.set_active(False),
-                self.status_lbl.configure(text="● ONLINE", text_color=TEXT_GREEN)
+                self.status_lbl.configure(text=TEXT_ONLINE, text_color=TEXT_GREEN)
             ))
 
         threading.Thread(target=worker, daemon=True).start()

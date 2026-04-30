@@ -1,6 +1,6 @@
 # J.A.R.V.I.S
 
-J.A.R.V.I.S is a Windows-first voice assistant built in Python and upgraded to a goal-based agent architecture.
+J.A.R.V.I.S (AI )is a Windows-first voice assistant built in Python and upgraded to a goal-based agent architecture.
 
 Instead of matching commands with a long rule list, it now:
 
@@ -10,6 +10,8 @@ Instead of matching commands with a long rule list, it now:
 4. Synthesizes a final response.
 
 This enables more natural voice requests and multi-step behavior.
+
+The repository includes both a terminal voice mode and a cinematic desktop UI. The UI adds a transcript panel, task and calendar widgets, face authentication, and speech controls on top of the same tool-based agent.
 
 ---
 
@@ -59,6 +61,7 @@ User Voice/Text -> Agent Planner -> Tool Call(s) -> Observation(s) -> Final Resp
 4. Entry Points
 - `jarvis.py`: terminal mode + voice + face authentication + notifications
 - `ui.py`: desktop interface + transcript + voice controls + agent routing
+- `ui_components/`: shared UI helpers for auth, speech, and theme handling
 
 5. Data Layer
 - Folder: `data/`
@@ -149,11 +152,15 @@ If missing, run training scripts under `Face-Recognition/` first.
 python ui.py
 ```
 
+The UI starts with face authentication, then shows the main Jarvis dashboard and routes requests through the same agent used by terminal mode.
+
 ### Terminal Mode
 
 ```powershell
 python jarvis.py
 ```
+
+Terminal mode uses microphone input, text-to-speech, face authentication, and the same goal-based tool planner.
 
 ---
 
@@ -171,6 +178,7 @@ Fallback behavior:
 
 - If Ollama is unavailable, fallback intent routing handles common requests.
 - If tool args are malformed, tool executor returns safe error text.
+- Public IP lookup is intentionally disabled.
 
 ---
 
@@ -247,6 +255,13 @@ Note: avoid running destructive power tools during routine smoke tests.
    - `IMPLEMENTATION_PLAN.md` (if roadmap changed)
 
 No rule-router edits are needed.
+
+## UI Notes
+
+- `ui.py` provides the primary desktop experience with a cinematic blue theme.
+- Face recognition depends on `Face-Recognition/trainer/trainer.yml` and OpenCV's Haar cascade.
+- Speech output is serialized so multiple responses do not overlap.
+- The UI shares the same agent and tool registry as the terminal app, so new tools appear everywhere automatically.
 
 ---
 
